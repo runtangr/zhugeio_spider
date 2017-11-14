@@ -37,7 +37,7 @@ def find():
     
     # "order_by":"last_visit_time,desc"
     result = requests.post(url,cookies=cookies,data=data)
-    # print (result.text)
+    print (result.text)
     return result.text
 
 if __name__ == "__main__":
