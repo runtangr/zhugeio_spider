@@ -17,29 +17,57 @@ def currentUser():
     
         "User-Agent":"Mozilla/5.0(Windows NT6.1;WOW64) AppleWebKit/537.36(KHTML, likeGecko) Chrome/61.0.3163.100Safari/537.36"
     }
-    cookies = dict(JSESSIONID="ED65CB5B7B13891BC9F51E9B11CF7FEB.gw1")
+    cookies = dict(JSESSIONID="EDDAFF6BB1D9AAA5916F81599BEC855D.gw1")
     result = requests.get(url,cookies=cookies)
     print (result.text)
 
-def find():
+def find(page):
     url = 'https://zhugeio.com/appuser/find.jsp'
-    cookies = dict(JSESSIONID="ED65CB5B7B13891BC9F51E9B11CF7FEB.gw1")
-    # data = "appId=48971&platform=2&json=%5B%5D&page=1&rows=20&total=0&order_by=last_visit_time%2Cdesc"
-    # last_visit_time = datetime.datetime.now()
+    cookies = dict(JSESSIONID="EDDAFF6BB1D9AAA5916F81599BEC855D.gw1")
     data = {
-            "appId":"48971",
-            "platform":"2",
+            "appId":48971,
+            "platform":2,
             "json":"[]",
-            "page":"1",
-            "rows":"20",
-            "total":"0"
+            "page":1,
+            "rows":20,
+            "total":0,
+            "order_by":"last_visit_time"
             }
-    
-    # "order_by":"last_visit_time,desc"
     result = requests.post(url,cookies=cookies,data=data)
-    print (result.text)
+    # print (result.text)
     return result.text
 
+def getUserid():
+    g = (x for x in range(1,1000))
+    for page in g:
+        results = find(page)
+        datas = json.loads(results)
+        if "login" in datas["values"] and datas["values"]["login"]==False:
+            print(results)
+            break
+        if len(datas["values"]["users"]) == 0:
+            break
+        it = iter(datas["values"]["users"])
+        while True:
+            try:
+                # 获得下一个值:
+                data = next(it)
+                yield data["zg_id"]
+            except StopIteration:
+                # 遇到StopIteration就退出循环
+                break
+    return
+
 if __name__ == "__main__":
-   result = find()
+    currentUser()
+    for userid in getUserid():
+        print(userid)
+
+
+   
+
+        
+
+
+
 
