@@ -45,3 +45,4 @@ livestatus.log
 venv
 .idea/
 target/
+src/main/python/user-info/user-file/
