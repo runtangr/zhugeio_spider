@@ -4,31 +4,28 @@ import json
 import requests
 import datetime
 
+cookies = dict(JSESSIONID="0DFCE1E49455D77F052F2B6191DBAA87.gw1")
+
 def currentUser():
+    '''
+    description: set current user by cookie.
+    '''
     url = 'https://zhugeio.com/company/currentUser.jsp'
-    header = {
-        "Accept": "application/json, text/javascript, */*; q=0.01",
-
-        "Host": "zhugeio.com",
-
-        "Origin": "https://zhugeio.com",
-    
-       "Referer": "https://zhugeio.com/appuser/toPage.jsp?app_id=48971&p=2",
-    
-        "User-Agent":"Mozilla/5.0(Windows NT6.1;WOW64) AppleWebKit/537.36(KHTML, likeGecko) Chrome/61.0.3163.100Safari/537.36"
-    }
-    cookies = dict(JSESSIONID="EDDAFF6BB1D9AAA5916F81599BEC855D.gw1")
     result = requests.get(url,cookies=cookies)
-    print (result.text)
+    # print (result.text)
 
-def find(page):
+def find(page,platform):
+    '''
+    description: find all user base data.
+    page: 0~ 
+    platform: 1 or 2  1:Android 2:ios
+    '''
     url = 'https://zhugeio.com/appuser/find.jsp'
-    cookies = dict(JSESSIONID="EDDAFF6BB1D9AAA5916F81599BEC855D.gw1")
     data = {
             "appId":48971,
-            "platform":2,
+            "platform":platform,
             "json":"[]",
-            "page":1,
+            "page":page,
             "rows":20,
             "total":0,
             "order_by":"last_visit_time"
@@ -37,10 +34,14 @@ def find(page):
     # print (result.text)
     return result.text
 
-def getUserid():
+def getUserid(platform):
+    '''
+    description: get all userid.
+    platform: 1 or 2  1:Android 2:ios
+    '''
     g = (x for x in range(1,1000))
     for page in g:
-        results = find(page)
+        results = find(page,platform)
         datas = json.loads(results)
         if "login" in datas["values"] and datas["values"]["login"]==False:
             print(results)
@@ -58,9 +59,28 @@ def getUserid():
                 break
     return
 
+def writeBase(platform):
+    '''
+    write user base data to userbase.dat .
+    platform: 1 or 2  1:Android 2:ios
+    '''
+    g = (x for x in range(1, 1000))
+    for page in g:
+        results = find(page,platform)
+        datas = json.loads(results)
+        if "login" in datas["values"] and datas["values"]["login"]==False:
+            print(results)
+            break
+        if len(datas["values"]["users"]) == 0:
+            break
+
+
 if __name__ == "__main__":
+    platform = 2
+    page = 2
     currentUser()
-    for userid in getUserid():
+    # find(page,platform)
+    for userid in getUserid(platform):
         print(userid)
 
 
