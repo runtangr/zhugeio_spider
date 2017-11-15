@@ -5,7 +5,6 @@ import requests
 import datetime
 
 cookies = dict(JSESSIONID="FD2FBE5C1915137E9CE79B2E184A211D.gw1")
-g = (x for x in range(1, 1000))
 
 def currentUser():
     '''
@@ -15,7 +14,7 @@ def currentUser():
     result = requests.get(url,cookies=cookies)
     # print (result.text)
 
-def find(page,platform):
+def findBase(page,platform):
     '''
     description: find all user base data.
     page: 0~ 
@@ -51,15 +50,16 @@ def getUserid(datas):
             break
     return
 
-def manage_data(platform, exec_mode="000001"):
+def manageData(platform, exec_mode="000001"):
     '''
     mange user data by find module. multitask
     :param platform:  1 or 2  1:Android 2:ios
     :param exec_mode: can select one or more mode
     :return: 
     '''
+    g = (x for x in range(1, 1000))
     for page in g:
-        results = find(page, platform)
+        results = findBase(page, platform)
         datas = json.loads(results)
 
         if "login" in datas["values"] and datas["values"]["login"] == False:
@@ -72,7 +72,7 @@ def manage_data(platform, exec_mode="000001"):
             yield getUserid(datas)
 
         if exec_mode[-2] == "1":
-            pass
+            writeBase(platform,datas)
 
         if exec_mode[-3] == "1":
             pass
@@ -83,30 +83,62 @@ def manage_data(platform, exec_mode="000001"):
         if exec_mode[-5] == "1":
             pass
 
-
-
-def writeBase(platform):
+def writeBase(platform,datas):
     '''
     write user base data to userbase.dat .
+    '''
+
+    with open('./user-file/userBase%s.dat' % ("Ios" if platform>1 else "Android") , 'ab') as f:
+        f.write(str(datas))
+
+def writeDetail(platform,datas):
+    '''
+    write user base data to userDetail.dat .
+    '''
+
+    with open('./user-file/userDetail%s.dat' % ("Ios" if platform>1 else "Android") , 'ab') as f:
+        f.write(str(datas))
+
+
+def findDetail(platform,uid):
+    '''
+    description: find all user detail data.
+    uid: user id  
     platform: 1 or 2  1:Android 2:ios
     '''
-    for page in g:
-        results = find(page,platform)
-        datas = json.loads(results)
+    result = queryUserInfos(platform, uid)
+    # print (result)
+    return result
 
-        if "login" in datas["values"] and datas["values"]["login"]==False:
-            print(results)
-            break
-        if len(datas["values"]["users"]) == 0:
-            break
+def queryUserInfos(platform, uid):
 
-        with open('./user-file/userBase.dat', 'ab') as f:
-            print(f.write(datas))
+    url = 'https://zhugeio.com/appuser/queryUserInfos.jsp'
+    data = {
+        "appId": 48971,
+        "platform": platform,
+        "uid": uid
+    }
+    result = requests.post(url, cookies=cookies, data=data)
+    # print (result.text)
+    return result.text
 
+
+def sessions(platform, uid):
+    url = 'https://zhugeio.com/appuser/sessions.jsp'
+    data = {
+        "appId": 48971,
+        "platform": platform,
+        "uid": uid,
+        "beginDayId": "20171114"
+    }
+    result = requests.post(url, cookies=cookies, data=data)
+    # print (result.text)
+    return result.text
 
 if __name__ == "__main__":
-    platform = 2
-    page = 2
+    platform = 1
+    # page = 2
+    exec_mode = "000001"
     currentUser()
     # find(page,platform)
 
@@ -115,10 +147,12 @@ if __name__ == "__main__":
 
     # writeBase(platform)
 
-    for userid_generator in manage_data(platform, exec_mode="000011"):
-        print (userid_generator)
+    for userid_generator in manageData(platform, exec_mode=exec_mode):
         for userid in userid_generator:
             print (userid)
+            result = findDetail(platform,userid)
+            result_js = json.loads(result)
+            writeDetail(platform,result_js)
 
    
 
