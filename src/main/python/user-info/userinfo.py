@@ -4,7 +4,8 @@ import json
 import requests
 import datetime
 
-cookies = dict(JSESSIONID="0DFCE1E49455D77F052F2B6191DBAA87.gw1")
+cookies = dict(JSESSIONID="FD2FBE5C1915137E9CE79B2E184A211D.gw1")
+g = (x for x in range(1, 1000))
 
 def currentUser():
     '''
@@ -34,45 +35,73 @@ def find(page,platform):
     # print (result.text)
     return result.text
 
-def getUserid(platform):
+def getUserid(datas):
     '''
     description: get all userid.
-    platform: 1 or 2  1:Android 2:ios
     '''
-    g = (x for x in range(1,1000))
+
+    it = iter(datas["values"]["users"])
+    while True:
+        try:
+            # 获得下一个值:
+            data = next(it)
+            yield data["zg_id"]
+        except StopIteration:
+            # 遇到StopIteration就退出循环
+            break
+    return
+
+def manage_data(platform, exec_mode="000001"):
+    '''
+    mange user data by find module. multitask
+    :param platform:  1 or 2  1:Android 2:ios
+    :param exec_mode: can select one or more mode
+    :return: 
+    '''
     for page in g:
-        results = find(page,platform)
+        results = find(page, platform)
         datas = json.loads(results)
-        if "login" in datas["values"] and datas["values"]["login"]==False:
+
+        if "login" in datas["values"] and datas["values"]["login"] == False:
             print(results)
             break
         if len(datas["values"]["users"]) == 0:
             break
-        it = iter(datas["values"]["users"])
-        while True:
-            try:
-                # 获得下一个值:
-                data = next(it)
-                yield data["zg_id"]
-            except StopIteration:
-                # 遇到StopIteration就退出循环
-                break
-    return
+
+        if exec_mode[-1] == "1":
+            yield getUserid(datas)
+
+        if exec_mode[-2] == "1":
+            pass
+
+        if exec_mode[-3] == "1":
+            pass
+
+        if exec_mode[-4] == "1":
+            pass
+
+        if exec_mode[-5] == "1":
+            pass
+
+
 
 def writeBase(platform):
     '''
     write user base data to userbase.dat .
     platform: 1 or 2  1:Android 2:ios
     '''
-    g = (x for x in range(1, 1000))
     for page in g:
         results = find(page,platform)
         datas = json.loads(results)
+
         if "login" in datas["values"] and datas["values"]["login"]==False:
             print(results)
             break
         if len(datas["values"]["users"]) == 0:
             break
+
+        with open('./user-file/userBase.dat', 'ab') as f:
+            print(f.write(datas))
 
 
 if __name__ == "__main__":
@@ -80,9 +109,16 @@ if __name__ == "__main__":
     page = 2
     currentUser()
     # find(page,platform)
-    for userid in getUserid(platform):
-        print(userid)
 
+    # for userid in getUserid(platform):
+    #     print(userid)
+
+    # writeBase(platform)
+
+    for userid_generator in manage_data(platform, exec_mode="000011"):
+        print (userid_generator)
+        for userid in userid_generator:
+            print (userid)
 
    
 
