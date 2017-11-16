@@ -4,7 +4,7 @@ import json
 import requests
 import datetime
 
-cookies = dict(JSESSIONID="6A47044FA33D2256E1B45E9C138672B2.gw1")
+cookies = dict(JSESSIONID="0BE870EA1A57E119A57D009969BE230C.gw1")
 
 def currentUser():
     '''
@@ -53,9 +53,11 @@ def getUserid(datas):
 def manageData(platform, exec_mode="000001"):
     '''
     mange user data by find module. multitask
-    :param platform:  1 or 2  1:Android 2:ios
-    :param exec_mode: can select one or more mode
-    :return: 
+    deal data by different mode.
+    exec_mode: "000000"
+                    || status 0: not deal, 1: write detail data.
+                    | status 0: not deal, 1: write base data.
+                    
     '''
     g = (x for x in range(1, 1000))
     for page in g:
@@ -72,9 +74,12 @@ def manageData(platform, exec_mode="000001"):
             yield getUserid(datas)
 
         if exec_mode[-2] == "1":
-            writeBaseFile(platform,datas)
+            for data in getUserData(datas):
+                build_datas = buildBaseData(data)
+                writeBaseFile(platform, build_datas)
 
         if exec_mode[-3] == "1":
+
             pass
 
         if exec_mode[-4] == "1":
@@ -83,21 +88,51 @@ def manageData(platform, exec_mode="000001"):
         if exec_mode[-5] == "1":
             pass
 
+def buildBaseData(user_data):
+    build_datas = {}
+    fixed_properties = user_data["fixed_properties"]
+    build_datas["zg_id"] = user_data["zg_id"]
+    for data in fixed_properties:
+        build_datas[data["property_name"]] = data["property_value"]
+    return build_datas
+
+def buildDetailData(user_data):
+    build_datas = {}
+    app_user_build = {}
+    app_user = user_data["app_data"]["user"]["app_user"]
+    for data in app_user:
+        app_user_build[data["name"]] = data["value"]
+    user_data["app_data"]["user"]["app_user"] = app_user_build
+    return user_data
+
+def getUserData(datas):
+    it = iter(datas["values"]["users"])
+    while True:
+        try:
+            # 获得下一个值:
+            data = next(it)
+            yield data
+        except StopIteration:
+            # 遇到StopIteration就退出循环
+            break
+    return
+
+
 def writeBaseFile(platform,datas):
     '''
     write user base data to userbase.dat .
     '''
 
-    with open('./user-file/userBase%s.dat' % ("Ios" if platform>1 else "Android") , 'w') as f:
-        f.write(str(datas))
+    with open('./user-file/userBase%s.dat' % ("Ios" if platform>1 else "Android") , 'a') as f:
+        f.writelines(str(datas)+'\n')
 
 def writeDetailFile(platform,datas):
     '''
     write user base data to userDetail.dat .
     '''
 
-    with open('./user-file/userDetail%s.dat' % ("Ios" if platform>1 else "Android") , 'w') as f:
-        f.write(str(datas))
+    with open('./user-file/userDetail%s.dat' % ("Ios" if platform>1 else "Android") , 'a') as f:
+        f.writelines(str(datas)+'\n')
 
 
 def findDetail(platform,uid):
@@ -135,26 +170,34 @@ def sessions(platform, uid):
     # print (result.text)
     return result.text
 
-def dealData(platform, exec_mode):
+def writeDetailData(platform):
     '''
-    deal data by different mode.
-    exec_mode: "000000"
-                    || status 0: not deal, 1: write detail data.
-                    | status 0: not deal, 1: write base data.
-                    
+    deal data by detail mode.                
     '''
+    # write detail data.
     for userid_generator in manageData(platform, exec_mode=exec_mode):
-        # write detail data.
-        if exec_mode[-1] == "1":
             for userid in userid_generator:
                 print(userid)
                 result = findDetail(platform, userid)
                 result_js = json.loads(result)
-                writeDetailFile(platform, result_js)
-        # write base data.
+                result_data = buildDetailData(result_js)
+                writeDetailFile(platform, result_data)
 
+def dealData(platform,exec_mode):
+    if exec_mode[-1]=="1":
+        writeDetailData(platform)
+
+    if exec_mode[-2]=="1":
+        for userid_generator in manageData(platform, exec_mode=exec_mode):
+            pass
 
 if __name__ == "__main__":
+    '''
+      exec_mode: "000000"
+                      || status 0: not deal, 1: write detail data.
+                      | status 0: not deal, 1: write base data.
+
+      '''
     platform = 1
     # page = 2
 
