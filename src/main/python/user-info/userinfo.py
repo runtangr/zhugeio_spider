@@ -4,7 +4,7 @@ import json
 import requests
 import datetime
 
-cookies = dict(JSESSIONID="FD2FBE5C1915137E9CE79B2E184A211D.gw1")
+cookies = dict(JSESSIONID="6A47044FA33D2256E1B45E9C138672B2.gw1")
 
 def currentUser():
     '''
@@ -60,7 +60,7 @@ def manageData(platform, exec_mode="000001"):
     g = (x for x in range(1, 1000))
     for page in g:
         results = findBase(page, platform)
-        datas = json.loads(results)
+        datas = json.loads(results,encoding="utf-8")
 
         if "login" in datas["values"] and datas["values"]["login"] == False:
             print(results)
@@ -72,7 +72,7 @@ def manageData(platform, exec_mode="000001"):
             yield getUserid(datas)
 
         if exec_mode[-2] == "1":
-            writeBase(platform,datas)
+            writeBaseFile(platform,datas)
 
         if exec_mode[-3] == "1":
             pass
@@ -83,20 +83,20 @@ def manageData(platform, exec_mode="000001"):
         if exec_mode[-5] == "1":
             pass
 
-def writeBase(platform,datas):
+def writeBaseFile(platform,datas):
     '''
     write user base data to userbase.dat .
     '''
 
-    with open('./user-file/userBase%s.dat' % ("Ios" if platform>1 else "Android") , 'ab') as f:
+    with open('./user-file/userBase%s.dat' % ("Ios" if platform>1 else "Android") , 'w') as f:
         f.write(str(datas))
 
-def writeDetail(platform,datas):
+def writeDetailFile(platform,datas):
     '''
     write user base data to userDetail.dat .
     '''
 
-    with open('./user-file/userDetail%s.dat' % ("Ios" if platform>1 else "Android") , 'ab') as f:
+    with open('./user-file/userDetail%s.dat' % ("Ios" if platform>1 else "Android") , 'w') as f:
         f.write(str(datas))
 
 
@@ -135,24 +135,45 @@ def sessions(platform, uid):
     # print (result.text)
     return result.text
 
+def dealData(platform, exec_mode):
+    '''
+    deal data by different mode.
+    exec_mode: "000000"
+                    || status 0: not deal, 1: write detail data.
+                    | status 0: not deal, 1: write base data.
+                    
+    '''
+    for userid_generator in manageData(platform, exec_mode=exec_mode):
+        # write detail data.
+        if exec_mode[-1] == "1":
+            for userid in userid_generator:
+                print(userid)
+                result = findDetail(platform, userid)
+                result_js = json.loads(result)
+                writeDetailFile(platform, result_js)
+        # write base data.
+
+
 if __name__ == "__main__":
     platform = 1
     # page = 2
-    exec_mode = "000001"
+
     currentUser()
+
+    #test find.jsp.
     # find(page,platform)
 
+    # test find userid.
     # for userid in getUserid(platform):
     #     print(userid)
 
+    #test write base data.
     # writeBase(platform)
 
-    for userid_generator in manageData(platform, exec_mode=exec_mode):
-        for userid in userid_generator:
-            print (userid)
-            result = findDetail(platform,userid)
-            result_js = json.loads(result)
-            writeDetail(platform,result_js)
+
+    exec_mode = "000001"
+    dealData(platform,exec_mode)
+
 
    
 
