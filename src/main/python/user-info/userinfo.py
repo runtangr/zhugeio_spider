@@ -1,10 +1,10 @@
 # -*- coding:utf-8 -*-
-
+#env: python3
 import json
 import requests
 import datetime
 
-cookies = dict(JSESSIONID="0BE870EA1A57E119A57D009969BE230C.gw1")
+cookies = dict(JSESSIONID="6F17912A26E99F1E21C2A16276CC588C.gw1")
 
 def currentUser():
     '''
@@ -42,11 +42,9 @@ def getUserid(datas):
     it = iter(datas["values"]["users"])
     while True:
         try:
-            # 获得下一个值:
             data = next(it)
             yield data["zg_id"]
         except StopIteration:
-            # 遇到StopIteration就退出循环
             break
     return
 
@@ -55,11 +53,12 @@ def manageData(platform, exec_mode="000001"):
     mange user data by find module. multitask
     deal data by different mode.
     exec_mode: "000000"
-                    || status 0: not deal, 1: write detail data.
+                    || status 0: not deal, 1: write UserInfos data.
                     | status 0: not deal, 1: write base data.
                     
     '''
-    g = (x for x in range(1, 1000))
+    #python3 range is generator
+    g = range(1, 1000)
     for page in g:
         results = findBase(page, platform)
         datas = json.loads(results,encoding="utf-8")
@@ -74,9 +73,7 @@ def manageData(platform, exec_mode="000001"):
             yield getUserid(datas)
 
         if exec_mode[-2] == "1":
-            for data in getUserData(datas):
-                build_datas = buildBaseData(data)
-                writeBaseFile(platform, build_datas)
+            yield datas
 
         if exec_mode[-3] == "1":
 
@@ -88,35 +85,31 @@ def manageData(platform, exec_mode="000001"):
         if exec_mode[-5] == "1":
             pass
 
-def buildBaseData(user_data):
-    build_datas = {}
-    fixed_properties = user_data["fixed_properties"]
-    build_datas["zg_id"] = user_data["zg_id"]
-    for data in fixed_properties:
-        build_datas[data["property_name"]] = data["property_value"]
-    return build_datas
+def buildBaseData(user_datas):
 
-def buildDetailData(user_data):
-    build_datas = {}
-    app_user_build = {}
-    app_user = user_data["app_data"]["user"]["app_user"]
-    for data in app_user:
-        app_user_build[data["name"]] = data["value"]
-    user_data["app_data"]["user"]["app_user"] = app_user_build
-    return user_data
+    for name,value in user_datas.items():
+        if name!="zg_id":
+            for data in value:
+                yield data["property_name"], data["property_value"]
+
+    return "done"
+
+def buildUserInfosData(user_data):
+
+    for data in user_data["app_data"]["user"]["app_user"]:
+        yield data["name"],data["value"]
+
+    return "done"
 
 def getUserData(datas):
     it = iter(datas["values"]["users"])
     while True:
         try:
-            # 获得下一个值:
             data = next(it)
             yield data
         except StopIteration:
-            # 遇到StopIteration就退出循环
             break
     return
-
 
 def writeBaseFile(platform,datas):
     '''
@@ -126,18 +119,17 @@ def writeBaseFile(platform,datas):
     with open('./user-file/userBase%s.dat' % ("Ios" if platform>1 else "Android") , 'a') as f:
         f.writelines(str(datas)+'\n')
 
-def writeDetailFile(platform,datas):
+def writeUserInfosFile(platform,datas):
     '''
-    write user base data to userDetail.dat .
+    write user base data to userUserInfos.dat .
     '''
 
-    with open('./user-file/userDetail%s.dat' % ("Ios" if platform>1 else "Android") , 'a') as f:
+    with open('./user-file/userInfos%s.dat' % ("Ios" if platform>1 else "Android") , 'a') as f:
         f.writelines(str(datas)+'\n')
 
-
-def findDetail(platform,uid):
+def findUserInfos(platform,uid):
     '''
-    description: find all user detail data.
+    description: find all user UserInfos data.
     uid: user id  
     platform: 1 or 2  1:Android 2:ios
     '''
@@ -157,7 +149,6 @@ def queryUserInfos(platform, uid):
     # print (result.text)
     return result.text
 
-
 def sessions(platform, uid):
     url = 'https://zhugeio.com/appuser/sessions.jsp'
     data = {
@@ -170,35 +161,49 @@ def sessions(platform, uid):
     # print (result.text)
     return result.text
 
-def writeDetailData(platform):
+def writeUserInfosData(platform,exec_mode):
     '''
-    deal data by detail mode.                
+    deal data by UserInfos mode.                
     '''
-    # write detail data.
+    # write UserInfos data.
+    app_user = {}
     for userid_generator in manageData(platform, exec_mode=exec_mode):
             for userid in userid_generator:
                 print(userid)
-                result = findDetail(platform, userid)
+                result = findUserInfos(platform, userid)
                 result_js = json.loads(result)
-                result_data = buildDetailData(result_js)
-                writeDetailFile(platform, result_data)
+
+                for name,value in buildUserInfosData(result_js):
+                    app_user[name] = value
+
+                result_js["app_data"]["user"]["app_user"] = app_user
+                writeUserInfosFile(platform, result_js)
+
+def writeBaseData(platform, exec_mode):
+    build_data = {}
+    for datas in manageData(platform, exec_mode=exec_mode):
+        for user_data in getUserData(datas):
+            build_data["zg_id"] = user_data["zg_id"]
+            for k, v in buildBaseData(user_data):
+                build_data[k] = v
+            writeBaseFile(platform, build_data)
 
 def dealData(platform,exec_mode):
     if exec_mode[-1]=="1":
-        writeDetailData(platform)
+        writeUserInfosData(platform,exec_mode)
 
     if exec_mode[-2]=="1":
-        for userid_generator in manageData(platform, exec_mode=exec_mode):
-            pass
+        writeBaseData(platform, exec_mode)
 
 if __name__ == "__main__":
     '''
       exec_mode: "000000"
-                      || status 0: not deal, 1: write detail data.
+                      || status 0: not deal, 1: write UserInfos data.
                       | status 0: not deal, 1: write base data.
-
+                      
+      platform: 1 or 2  1:Android 2:ios
       '''
-    platform = 1
+    platform = 2
     # page = 2
 
     currentUser()
