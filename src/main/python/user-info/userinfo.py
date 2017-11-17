@@ -4,7 +4,7 @@ import json
 import requests
 import datetime
 
-cookies = dict(JSESSIONID="6F17912A26E99F1E21C2A16276CC588C.gw1")
+cookies = dict(JSESSIONID="0FC8E0CB0255F7ADBFE2361E69DE5262.gw1")
 
 def currentUser():
     '''
@@ -53,8 +53,9 @@ def manageData(platform, exec_mode="000001"):
     mange user data by find module. multitask
     deal data by different mode.
     exec_mode: "000000"
-                    || status 0: not deal, 1: write UserInfos data.
-                    | status 0: not deal, 1: write base data.
+                     ||| status 0: not deal, 1: write base data. 
+                     || status 0: not deal, 1: write UserInfos data.
+                     | status 0: not deal, 1: write Sessions data.
                     
     '''
     #python3 range is generator
@@ -70,14 +71,13 @@ def manageData(platform, exec_mode="000001"):
             break
 
         if exec_mode[-1] == "1":
-            yield getUserid(datas)
-
-        if exec_mode[-2] == "1":
             yield datas
 
-        if exec_mode[-3] == "1":
+        if exec_mode[-2] == "1":
+            yield getUserid(datas)
 
-            pass
+        if exec_mode[-3] == "1":
+            yield getUserid(datas)
 
         if exec_mode[-4] == "1":
             pass
@@ -101,6 +101,13 @@ def buildUserInfosData(user_data):
 
     return "done"
 
+def buildSessionsData(user_data):
+
+    for sessionInfo in user_data["values"]["sessionInfos"]:
+        yield sessionInfo
+
+    return "done"
+
 def getUserData(datas):
     it = iter(datas["values"]["users"])
     while True:
@@ -111,20 +118,13 @@ def getUserData(datas):
             break
     return
 
-def writeBaseFile(platform,datas):
+def writeUserData2File(platform,datas,data_type):
     '''
-    write user base data to userbase.dat .
-    '''
-
-    with open('./user-file/userBase%s.dat' % ("Ios" if platform>1 else "Android") , 'a') as f:
-        f.writelines(str(datas)+'\n')
-
-def writeUserInfosFile(platform,datas):
-    '''
-    write user base data to userUserInfos.dat .
+    write user base data to ****.dat .
     '''
 
-    with open('./user-file/userInfos%s.dat' % ("Ios" if platform>1 else "Android") , 'a') as f:
+    with open('./user-file/{data_type}{platform}.dat'.format(data_type=data_type,
+                                                             platform=("Ios" if platform>1 else "Android")) , 'a') as f:
         f.writelines(str(datas)+'\n')
 
 def findUserInfos(platform,uid):
@@ -155,7 +155,7 @@ def sessions(platform, uid):
         "appId": 48971,
         "platform": platform,
         "uid": uid,
-        "beginDayId": "20171114"
+        "beginDayId": "20171116"
     }
     result = requests.post(url, cookies=cookies, data=data)
     # print (result.text)
@@ -177,7 +177,7 @@ def writeUserInfosData(platform,exec_mode):
                     app_user[name] = value
 
                 result_js["app_data"]["user"]["app_user"] = app_user
-                writeUserInfosFile(platform, result_js)
+                writeUserData2File(platform, result_js,data_type="UserInfos")
 
 def writeBaseData(platform, exec_mode):
     build_data = {}
@@ -186,21 +186,39 @@ def writeBaseData(platform, exec_mode):
             build_data["zg_id"] = user_data["zg_id"]
             for k, v in buildBaseData(user_data):
                 build_data[k] = v
-            writeBaseFile(platform, build_data)
+            writeUserData2File(platform, build_data, data_type="Base")
+
+def writeUserSessionsData(platform, exec_mode):
+    '''
+        deal data by sessions mode.                
+        '''
+    # write sessions data.
+    app_user = {}
+    for userid_generator in manageData(platform, exec_mode=exec_mode):
+        for userid in userid_generator:
+            print(userid)
+            result = sessions(platform, userid)
+            result_js = json.loads(result)
+
+            for sessionInfo in buildSessionsData(result_js):
+                writeUserData2File(platform, sessionInfo,data_type="Session")
 
 def dealData(platform,exec_mode):
     if exec_mode[-1]=="1":
-        writeUserInfosData(platform,exec_mode)
+        writeBaseData(platform, exec_mode)
 
     if exec_mode[-2]=="1":
-        writeBaseData(platform, exec_mode)
+        writeUserInfosData(platform, exec_mode)
+
+    if exec_mode[-3]=="1":
+        writeUserSessionsData(platform,exec_mode)
 
 if __name__ == "__main__":
     '''
       exec_mode: "000000"
-                      || status 0: not deal, 1: write UserInfos data.
-                      | status 0: not deal, 1: write base data.
-                      
+                     ||| status 0: not deal, 1: write base data. 
+                     || status 0: not deal, 1: write UserInfos data.
+                     | status 0: not deal, 1: write Sessions data.
       platform: 1 or 2  1:Android 2:ios
       '''
     platform = 2
@@ -219,7 +237,7 @@ if __name__ == "__main__":
     # writeBase(platform)
 
 
-    exec_mode = "000001"
+    exec_mode = "000100"
     dealData(platform,exec_mode)
 
 
