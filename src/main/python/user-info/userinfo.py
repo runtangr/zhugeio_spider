@@ -53,9 +53,9 @@ def manageData(platform, exec_mode="000001"):
     mange user data by find module. multitask
     deal data by different mode.
     exec_mode: "000000"
-                     ||| status 0: not deal, 1: write base data. 
-                     || status 0: not deal, 1: write UserInfos data.
-                     | status 0: not deal, 1: write Sessions data.
+                   ||| status 0: not deal, 1: write base data. 
+                   || status 0: not deal, 1: write UserInfos data.
+                   | status 0: not deal, 1: write Sessions data.
                     
     '''
     #python3 range is generator
