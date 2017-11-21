@@ -1,7 +1,7 @@
 # 主要运用技术
       cookie ()
       python requests
-      python 生成器和迭代器（装饰器器 装饰器 adding）
+      python 生成器和迭代器（ 装饰器 adding）
 
 # 主要需求 user-info
       获取所有用户数据，目前是通过获取所以的用户id 来获取用户数据 
