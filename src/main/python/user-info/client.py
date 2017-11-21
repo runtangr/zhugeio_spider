@@ -7,6 +7,18 @@ import requests
 
 __author__ = "tangr"
 
+def need_init(func):
+    def new_func(*args, **kwargs):
+
+        headers = {
+            'Content-Type': 'application/json;charset=utf-8',
+
+        }
+
+        return func(headers=headers, *args, **kwargs)
+    return new_func
+
+
 class Error(Exception):
     def __init__(self, code, error):
         self.code = code

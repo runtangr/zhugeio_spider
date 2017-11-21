@@ -4,7 +4,7 @@ import json
 import requests
 import datetime
 
-cookies = dict(JSESSIONID="0FC8E0CB0255F7ADBFE2361E69DE5262.gw1")
+cookies = dict(JSESSIONID="A4C267C2057DBDDB8E69D761CCFCA503.gw1")
 
 def currentUser():
     '''
@@ -123,9 +123,9 @@ def writeUserData2File(platform,datas,data_type):
     write user base data to ****.dat .
     '''
 
-    with open('./user-file/{data_type}{platform}.dat'.format(data_type=data_type,
+    with open('./user-file/{data_type}{platform}.json'.format(data_type=data_type,
                                                              platform=("Ios" if platform>1 else "Android")) , 'a') as f:
-        f.writelines(str(datas)+'\n')
+        f.writelines(json.dumps(datas, ensure_ascii=False) +'\n')
 
 def findUserInfos(platform,uid):
     '''
@@ -221,7 +221,7 @@ if __name__ == "__main__":
                      | status 0: not deal, 1: write Sessions data.
       platform: 1 or 2  1:Android 2:ios
       '''
-    platform = 2
+    platform = 1
     # page = 2
 
     currentUser()
