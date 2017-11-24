@@ -1,4 +1,5 @@
 #encoding=utf-8
+#!/usr/bin/env python3
 '''
 definition decorator
 '''
@@ -19,7 +20,7 @@ def need_init(func):
     return new_func
 
 
-class Error(Exception):
+class error(Exception):
     def __init__(self, code, error):
         self.code = code
         self.error = error
@@ -28,17 +29,17 @@ class Error(Exception):
         error = self.error if isinstance(self.error, str) else self.error.encode('utf-8', 'ignore')
         return 'Error: [{0}] {1}'.format(self.code, error)
 
-def check_error(func):
-    def new_func(*args, **kwargs):
-        response = func(*args, **kwargs)
-        assert isinstance(response, requests.Response)
-        if response.headers.get('Content-Type') == 'text/html':
-            raise Error(-1, 'Bad Request')
+    def check_error(func):
+        def new_func(*args, **kwargs):
+            response = func(*args, **kwargs)
+            assert isinstance(response, requests.Response)
+            if response.headers.get('Content-Type') == 'text/html':
+                raise error(-1, 'Bad Request')
 
-        content = response.json()
+            content = response.json()
 
-        if 'error' in content:
-            raise Error(content.get('code', 1), content.get('error', 'Unknown Error'))
+            if 'error' in content:
+                raise error(content.get('code', 1), content.get('error', 'Unknown Error'))
 
-        return response
-    return new_func
+            return response
+        return new_func

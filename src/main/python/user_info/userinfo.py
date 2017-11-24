@@ -1,11 +1,16 @@
 # -*- coding:utf-8 -*-
-#env: python3
+#!/usr/bin/env python3
 import json
 import requests
 import datetime
-import os
-jsessionid = os.environ.get("JSESSIONID", None)
-cookies = dict(JSESSIONID=jsessionid)
+import os,sys
+
+basedir = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
+sys.path.append(basedir)
+
+from analog_login import login
+
+cookies = login.login()
 
 def currentUser():
     '''
@@ -287,7 +292,7 @@ if __name__ == "__main__":
     #test write base data.
     # writeBase(platform)
 
-    exec_mode = "001000"
+    exec_mode = "000100"
     dealData(platform,exec_mode)
 
 
