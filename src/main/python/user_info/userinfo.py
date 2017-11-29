@@ -1,341 +1,326 @@
 # -*- coding:utf-8 -*-
-#!/usr/bin/env python3
+
 import json
 import requests
 import datetime
 import os
 import sys
-from analog_login import login
-basedir = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
-sys.path.append(basedir)
-cookies = login.login()
+from client import ZhugeClient
+
+client = ZhugeClient()
+cookies = client.login()
 
 
-def current_user():
-    '''
-    description: set current user by cookie.
-    '''
-    url = 'https://zhugeio.com/company/currentUser.jsp'
-    result = requests.get(url, cookies=cookies)
-    print(result.text)
+class UserInfo(object):
 
+    def __init__(self):
+        # exe_mode: "000000"
+        #              |||| status 0: not deal, 1: write base data.
+        #              ||| status 0: not deal, 1: write UserInfos data.
+        #              || status 0: not deal, 1: write Yesterday's Sessions data.
+        #              | status 0: not deal, 1: write all Sessions data.
+        # plat_form: 1 or 2  1:Android 2:ios
 
-def find_base(page, platform):
-    '''
-    description: find all user base data.
-    page: 0~ 
-    platform: 1 or 2  1:Android 2:ios
-    '''
-    url = 'https://zhugeio.com/appuser/find.jsp'
-    data = {
-            "appId": 48971,
-            "platform": platform,
-            "json": "[]",
-            "page": page,
-            "rows": 20,
-            "total": 0,
-            "order_by": "last_visit_time"
-            }
-    result = requests.post(url, cookies=cookies, data=data)
-    # print (result.text)
-    return result.text
+        self.plat_form = 1
+        self.exe_mode = "000010"
 
+    # @classmethod
+    def current_user(self):
+        url = 'https://zhugeio.com/company/currentUser.jsp'
+        result = requests.get(url, cookies=cookies)
+        print(result.text)
 
-def get_userinfos(datas):
-    '''
-    description: get all userid.
-    '''
+    def find_base(self, page):
+        # description: find all user base data.
+        #
+        # page: 0~
+        # platform: 1 or 2  1:Android 2:ios
 
-    it = iter(datas["values"]["users"])
-    for userinfo in it:
-        for fixed_propert in userinfo["fixed_properties"]:
-            if fixed_propert["property_name"] == "first_visit_time":
-                yield userinfo["zg_id"], fixed_propert["property_value"]
+        url = 'https://zhugeio.com/appuser/find.jsp'
+        data = {
+                "appId": 48971,
+                "platform": self.plat_form,
+                "json": "[]",
+                "page": page,
+                "rows": 20,
+                "total": 0,
+                "order_by": "last_visit_time"
+                }
+        result = requests.post(url, cookies=cookies, data=data)
+        # print (result.text)
+        return result.text
 
-    return
+    def get_user_info(self, search_base_data):
+        # description: get all user_id.
 
-def manageData(platform, exec_mode="000001"):
-    '''
-    mange user data by find module. multitask
-    deal data by different mode.
-    exec_mode: "000000"
-                   ||| status 0: not deal, 1: write base data. 
-                   || status 0: not deal, 1: write UserInfos data.
-                   | status 0: not deal, 1: write Sessions data.
-                    
-    '''
-    #python3 range is generator
-    g = range(1, 1000)
-    for page in g:
-        results = find_base(page, platform)
-        datas = json.loads(results, encoding="utf-8")
+        it = iter(search_base_data["values"]["users"])
+        for user_info in it:
+            for fixed_property in user_info["fixed_properties"]:
+                if fixed_property["property_name"] == "first_visit_time":
+                    yield user_info["zg_id"], fixed_property["property_value"]
 
-        if "login" in datas["values"] and datas["values"]["login"] == False:
-            print(results)
-            break
-        if len(datas["values"]["users"]) == 0:
-            break
+        return
 
-        if exec_mode[-1] == "1":
-            yield datas
+    def manage_data(self):
+        # mange user data by find module. multitask
+        # deal data by different mode.
+        # exec_mode: "000000"
+        #                ||| status 0: not deal, 1: write base data.
+        #                || status 0: not deal, 1: write UserInfo data.
+        #                | status 0: not deal, 1: write Sessions data.
 
-        if exec_mode[-2] == "1" or exec_mode[-3] == "1" \
-                or exec_mode[-4] == "1":
-            yield get_userinfos(datas)
+        g = range(1, 1000)
+        for page in g:
+            results = self.find_base(page)
+            base_data = json.loads(results, encoding="utf-8")
 
-        if exec_mode[-5] == "1":
-            pass
+            if ("login" in base_data["values"] and
+                    base_data["values"]["login"] is False):
+                print(results)
+                break
+            if len(base_data["values"]["users"]) == 0:
+                break
 
-def buildBaseData(user_datas):
+            if self.exe_mode[-1] == "1":
+                yield base_data
 
-    for name,value in user_datas.items():
-        if name!="zg_id":
-            for data in value:
-                yield data["property_name"], data["property_value"]
+            if (self.exe_mode[-2] == "1"
+                    or self.exe_mode[-3] == "1"
+                    or self.exe_mode[-4] == "1"):
+                yield self.get_user_info(base_data)
 
-    return "done"
+            if self.exe_mode[-5] == "1":
+                pass
 
-def buildUserInfosData(user_data):
+    def build_base_data(self, user_datas):
 
-    for data in user_data["app_data"]["user"]["app_user"]:
-        yield data["name"],data["value"]
+        for name, value in user_datas.items():
+            if name != "zg_id":
+                for data in value:
+                    yield data["property_name"], data["property_value"]
 
-    return "done"
+        return "done"
 
-def buildSessionsData(user_data):
+    def build_user_info_data(self, user_data):
 
-    for sessionInfo in user_data["values"]["sessionInfos"]:
-        yield sessionInfo
+        for data in user_data["app_data"]["user"]["app_user"]:
+            yield data["name"], data["value"]
 
-    return "done"
+        return "done"
 
-def getUserData(datas):
-    it = iter(datas["values"]["users"])
-    while True:
-        try:
-            data = next(it)
+    def build_sessions_data(self, user_data):
+
+        for sessionInfo in user_data["values"]["sessionInfos"]:
+            yield sessionInfo
+
+        return "done"
+
+    def get_user_data(self, users):
+        for data in users["values"]["users"]:
             yield data
-        except StopIteration:
-            break
-    return
 
-def writeUserData2File(platform, datas,
-                       data_type, begin_day_id=None,
-                       exe_mode=None):
-    '''
-    write user base data to ****.dat .
-    '''
-    if data_type=="Session":
-        if exec_mode == "001000":
-            with open('./user_file/{data_type}{platform}_all.json'.format(
-                    data_type=data_type,
-                    platform=("Ios" if platform > 1 else "Android")),
-                      'a') as f:
-                f.writelines(json.dumps(datas, ensure_ascii=False) + '\n')
+        return
+
+    def write_user_data2file(self, datas,
+                             data_type, begin_day_id=None):
+        # write user base data to ****.dat .
+
+        if data_type == "Session":
+            if self.exe_mode == "001000":
+                with open('./user_file/{data_type}{platform}_all.json'.format(
+                        data_type=data_type,
+                        platform=("Ios" if self.plat_form > 1 else "Android")),
+                          'a') as f:
+                    f.writelines(json.dumps(datas, ensure_ascii=False) + '\n')
+            else:
+                with open('./user_file/{data_type}{platform}_{beginDayId}.json'.format(
+                        data_type=data_type,
+                        platform=("Ios" if self.plat_form > 1 else "Android"),
+                        beginDayId=begin_day_id),
+                          'a') as f:
+                    f.writelines(json.dumps(datas, ensure_ascii=False) + '\n')
         else:
-            with open('./user_file/{data_type}{platform}_{beginDayId}.json'.format(
+            with open('./user_file/{data_type}{platform}.json'.format(
                     data_type=data_type,
-                    platform=("Ios" if platform > 1 else "Android"),
-                    beginDayId=begin_day_id),
+                    platform=("Ios" if self.plat_form > 1 else "Android")),
                       'a') as f:
                 f.writelines(json.dumps(datas, ensure_ascii=False) + '\n')
-    else:
-        with open('./user_file/{data_type}{platform}.json'.format(
-                data_type=data_type,
-                platform=("Ios" if platform > 1 else "Android")),
-                  'a') as f:
-            f.writelines(json.dumps(datas, ensure_ascii=False) +'\n')
+
+    def find_user_info(self, plat_form, uid):
+        # description: find all user UserInfo data.
+        # uid: user id
+        # platform: 1 or 2  1:Android 2:ios
+
+        result = self.query_user_info(uid)
+        # print (result)
+        return result
+
+    def query_user_info(self, uid):
+
+        url = 'https://zhugeio.com/appuser/queryUserInfos.jsp'
+        data = {
+            "appId": 48971,
+            "platform": self.plat_form,
+            "uid": uid
+        }
+        result = requests.post(url, cookies=cookies, data=data)
+        # print (result.text)
+        return result.text
+
+    def sessions(self, uid, begin_day_id):
+        url = 'https://zhugeio.com/appuser/sessions.jsp'
+        data = {
+            "appId": 48971,
+            "platform": self.plat_form,
+            "uid": uid,
+            "beginDayId": begin_day_id
+        }
+        result = requests.post(url, cookies=cookies, data=data)
+        # print (result.text)
+        return result.text
+
+    def sessions_attr_info(self, uid,
+                           event_id, session_id,
+                           uuid, begin_date):
+        url = 'https://zhugeio.com/appuser/querySessionAttrInfos.jsp'
+        data = {
+            "appId": 48971,
+            "platform": self.plat_form,
+            "uid": uid,
+            "eventId": event_id,
+            "sessionId": session_id,
+            "uuid": uuid,
+            "beginDate": begin_date
+        }
+        result = requests.post(url, cookies=cookies, data=data)
+        # print (result.text)
+        return result.text
+
+    def get_user_id(self):
+        for user_id_generator in self.manage_data():
+                for user_id, first_visit_time in user_id_generator:
+                    yield user_id
 
 
-def findUserInfos(platform, uid):
-    '''
-    description: find all user UserInfos data.
-    uid: user id  
-    platform: 1 or 2  1:Android 2:ios
-    '''
-    result = queryUserInfos(platform, uid)
-    # print (result)
-    return result
+    def get_user_infos_data(self, user_id):
+        # deal data by UserInfo mode.
 
+        app_user = {}
 
-def queryUserInfos(platform, uid):
-
-    url = 'https://zhugeio.com/appuser/queryUserInfos.jsp'
-    data = {
-        "appId": 48971,
-        "platform": platform,
-        "uid": uid
-    }
-    result = requests.post(url, cookies=cookies, data=data)
-    # print (result.text)
-    return result.text
-
-
-def sessions(platform, uid, begin_day_id):
-    url = 'https://zhugeio.com/appuser/sessions.jsp'
-    data = {
-        "appId": 48971,
-        "platform": platform,
-        "uid": uid,
-        "beginDayId": begin_day_id
-    }
-    result = requests.post(url, cookies=cookies, data=data)
-    # print (result.text)
-    return result.text
-
-
-def sessions_attr_info(plat_form, uid, event_id, session_id, uuid, begin_date):
-    url = 'https://zhugeio.com/appuser/querySessionAttrInfos.jsp'
-    data = {
-        "appId": 48971,
-        "platform": plat_form,
-        "uid": uid,
-        "eventId": event_id,
-        "sessionId": session_id,
-        "uuid": uuid,
-        "beginDate": begin_date
-    }
-    result = requests.post(url, cookies=cookies, data=data)
-    # print (result.text)
-    return result.text
-
-def getUserId(platform, exec_mode):
-    for userid_generator in manageData(platform, exec_mode=exec_mode):
-            for userid, first_visit_time in userid_generator:
-                yield userid
-
-def getUserInfosData(platform, exec_mode, userid):
-    '''
-    deal data by UserInfos mode.                
-    '''
-    # write UserInfos data.
-    app_user = {}
-
-    result = findUserInfos(platform, userid)
-    result_js = json.loads(result)
-
-    for name,value in buildUserInfosData(result_js):
-        app_user[name] = value
-
-    return result_js, app_user, result_js["app_data"]["user"]["sessionDays"]
-
-def writeUserInfosData(platform,exec_mode):
-    '''
-    deal data by UserInfos mode.                
-    '''
-    # write UserInfos data.
-    for userid in getUserId(platform,exec_mode):
-        result_js, app_user, _ = getUserInfosData(platform,exec_mode, userid)
-
-        result_js["app_data"]["user"]["app_user"] = app_user
-
-        writeUserData2File(platform, result_js,data_type="UserInfos")
-
-def writeBaseData(platform, exec_mode):
-    build_data = {}
-    for datas in manageData(platform, exec_mode=exec_mode):
-        for user_data in getUserData(datas):
-            build_data["zg_id"] = user_data["zg_id"]
-            for k, v in buildBaseData(user_data):
-                build_data[k] = v
-            writeUserData2File(platform, build_data, data_type="Base")
-
-
-def get_session_ip(plat_form, user_id, session_info):
-    if len(session_info["events"]) == 0:
-        return ""
-    uuid = session_info["events"][0]["uuid"]
-    begin_date = session_info["events"][0]["beginDate"]
-    event_id = session_info["events"][0]["eventId"]
-
-    session_id = session_info["sessionId"]
-
-    result = sessions_attr_info(plat_form, user_id, event_id, session_id, uuid, begin_date)
-
-    result_json = json.loads(result)
-    for env_info in result_json["app_data"][0]["env_infos"]:
-        if env_info["name"] == "ip":
-            return env_info["value"]
-
-
-def writeUserSessionsYestData(platform, exec_mode, beginDayId=None):
-    '''
-        deal data by sessions mode.                
-        '''
-    # write sessions data.
-    for userid in getUserId(platform, exec_mode):
-        result = sessions(platform, userid, beginDayId)
+        result = self.find_user_info(self.plat_form, user_id)
         result_js = json.loads(result)
 
-        for sessionInfo in buildSessionsData(result_js):
-            sessionInfo["zg_id"] = userid
-            sessionInfo["beginDayId"] = beginDayId
-            sessionInfo["ip"] = get_session_ip(platform, userid, sessionInfo)
-            writeUserData2File(platform,
-                               sessionInfo,
-                               data_type="Session",
-                               begin_day_id=beginDayId,
-                               exe_mode=exec_mode)
+        for name, value in self.build_user_info_data(result_js):
+            app_user[name] = value
 
-def writeUserSessionsAllData(platform, exec_mode, beginDayId=None):
-    '''
-        deal data by sessions mode.                
-        '''
-    # write sessions data.
-    for userid in getUserId(platform, exec_mode):
+        return result_js, app_user, result_js["app_data"]["user"]["sessionDays"]
 
-        # get this user dayId
-        for beginDayId in getDayid(platform, exec_mode,userid):
-            #get session data by userid and beginDayId.
-            result = sessions(platform, userid, beginDayId)
+
+    def write_user_infos_data(self):
+        # deal data by UserInfos mode.
+        for search_user_id in self.get_user_id():
+            result_js, app_user, _ = self.get_user_infos_data(search_user_id)
+
+            result_js["app_data"]["user"]["app_user"] = app_user
+
+            self.write_user_data2file(result_js, data_type="UserInfos")
+
+
+    def write_base_data(self):
+        build_data = {}
+        for datas in self.manage_data():
+            for user_data in self.get_user_data(datas):
+                build_data["zg_id"] = user_data["zg_id"]
+                for k, v in self.build_base_data(user_data):
+                    build_data[k] = v
+                self.write_user_data2file(build_data, data_type="Base")
+
+    def get_session_ip(self, user_id, session_info):
+        if len(session_info["events"]) == 0:
+            return ""
+        uuid = session_info["events"][0]["uuid"]
+        begin_date = session_info["events"][0]["beginDate"]
+        event_id = session_info["events"][0]["eventId"]
+
+        session_id = session_info["sessionId"]
+
+        result = self.sessions_attr_info(user_id,
+                                         event_id,
+                                         session_id,
+                                         uuid,
+                                         begin_date)
+
+        result_json = json.loads(result)
+        for env_info in result_json["app_data"][0]["env_infos"]:
+            if env_info["name"] == "ip":
+                return env_info["value"]
+
+    def write_sessions_yest_data(self, begin_day_id=None):
+        # deal data by sessions mode.
+
+        for userid in self.get_user_id():
+            result = self.sessions(userid, begin_day_id)
             result_js = json.loads(result)
-            for sessionInfo in buildSessionsData(result_js):
+
+            for sessionInfo in self.build_sessions_data(result_js):
                 sessionInfo["zg_id"] = userid
-                sessionInfo["beginDayId"] = beginDayId
-                writeUserData2File(platform,
-                                   sessionInfo,
-                                   data_type="Session",
-                                   begin_day_id=beginDayId,
-                                   exe_mode=exec_mode)
+                sessionInfo["beginDayId"] = begin_day_id
+                sessionInfo["ip"] = self.get_session_ip(userid, sessionInfo)
+                self.write_user_data2file(
+                                     sessionInfo,
+                                     data_type="Session",
+                                     begin_day_id=begin_day_id)
 
-def getDayid(platform, exec_mode, user_id):
-    _, _, sessionDays = getUserInfosData(platform, exec_mode, user_id)
-    for sessionDay in sessionDays:
-        if sessionDay["numbers"] != 0:
-            yield sessionDay["dayId"]
+    def write_sessions_all_data(self, begin_day_id=None):
+        '''
+            deal data by sessions mode.                
+            '''
+        # write sessions data.
+        for user_id in self.get_user_id():
 
-def dealData(platform,exec_mode):
-    if exec_mode[-1] is "1":
-        writeBaseData(platform, exec_mode)
+            # get this user dayId
+            for begin_day_id in self.get_day_id(user_id):
+                # get session data by user_id and beginDayId.
+                result = self.sessions(user_id, begin_day_id)
+                result_js = json.loads(result)
+                for sessionInfo in self.build_sessions_data(result_js):
+                    sessionInfo["zg_id"] = user_id
+                    sessionInfo["beginDayId"] = begin_day_id
+                    self.write_user_data2file(
+                                         sessionInfo,
+                                         data_type="Session",
+                                         begin_day_id=begin_day_id)
 
-    if exec_mode[-2] is "1":
-        writeUserInfosData(platform, exec_mode)
+    def get_day_id(self, user_id):
+        _, _, session_days = self.get_user_infos_data(user_id)
+        for sessionDay in session_days:
+            if sessionDay["numbers"] != 0:
+                yield sessionDay["dayId"]
 
-    if exec_mode[-3] is "1":
-        yesterday = datetime.datetime.now() - datetime.timedelta(days=1)
+    def deal_data(self):
+        if self.exe_mode[-1] is "1":
+            self.write_base_data()
 
-        begin_day_id = int(yesterday.strftime("%Y%m%d"))
-        writeUserSessionsYestData(platform, exec_mode, begin_day_id)
+        if self.exe_mode[-2] is "1":
+            self.write_user_infos_data()
 
-    if exec_mode[-4] is "1":
+        if self.exe_mode[-3] is "1":
+            yesterday = datetime.datetime.now() - datetime.timedelta(days=1)
 
-        writeUserSessionsAllData(platform, exec_mode)
+            begin_day_id = int(yesterday.strftime("%Y%m%d"))
+            self.write_sessions_yest_data(begin_day_id)
+
+        if self.exe_mode[-4] is "1":
+
+            self.write_sessions_all_data()
 
 if __name__ == "__main__":
-    '''
-      exec_mode: "000000"
-                    |||| status 0: not deal, 1: write base data. 
-                    ||| status 0: not deal, 1: write UserInfos data.
-                    || status 0: not deal, 1: write Yesterday's Sessions data.
-                    | status 0: not deal, 1: write all Sessions data.
-      platform: 1 or 2  1:Android 2:ios
-      '''
-    platform = 2
 
-    current_user()
+    user_info = UserInfo()
 
-    exec_mode = "000100"
-    dealData(platform, exec_mode)
+    user_info.current_user()
+
+    user_info.deal_data()
 
 
    
