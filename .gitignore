@@ -45,5 +45,5 @@ livestatus.log
 venv
 .idea/
 target/
-src/main/python/user-info/user_file/
-src/main/python/user-info/user_filter/
+src/main/python/user_info/user_file/
+src/main/python/user_info/user_filter/*
