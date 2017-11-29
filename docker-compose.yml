@@ -1,0 +1,8 @@
+version: '2'
+
+services:
+
+  useraction:
+      build: ./
+      command: python uer_info/useraction_sync.py
+
