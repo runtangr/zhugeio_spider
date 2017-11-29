@@ -46,3 +46,4 @@ venv
 .idea/
 target/
 src/main/python/user-info/user_file/
+src/main/python/user-info/user_filter/

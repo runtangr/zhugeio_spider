@@ -3,24 +3,24 @@
 import json
 import requests
 import datetime
-import os,sys
-
+import os
+import sys
+from analog_login import login
 basedir = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
 sys.path.append(basedir)
-
-from analog_login import login
-
 cookies = login.login()
 
-def currentUser():
+
+def current_user():
     '''
     description: set current user by cookie.
     '''
     url = 'https://zhugeio.com/company/currentUser.jsp'
-    result = requests.get(url,cookies=cookies)
-    print (result.text)
+    result = requests.get(url, cookies=cookies)
+    print(result.text)
 
-def findBase(page,platform):
+
+def find_base(page, platform):
     '''
     description: find all user base data.
     page: 0~ 
@@ -28,19 +28,20 @@ def findBase(page,platform):
     '''
     url = 'https://zhugeio.com/appuser/find.jsp'
     data = {
-            "appId":48971,
-            "platform":platform,
-            "json":"[]",
-            "page":page,
-            "rows":20,
-            "total":0,
-            "order_by":"last_visit_time"
+            "appId": 48971,
+            "platform": platform,
+            "json": "[]",
+            "page": page,
+            "rows": 20,
+            "total": 0,
+            "order_by": "last_visit_time"
             }
-    result = requests.post(url,cookies=cookies,data=data)
+    result = requests.post(url, cookies=cookies, data=data)
     # print (result.text)
     return result.text
 
-def getUserinfos(datas):
+
+def get_userinfos(datas):
     '''
     description: get all userid.
     '''
@@ -66,8 +67,8 @@ def manageData(platform, exec_mode="000001"):
     #python3 range is generator
     g = range(1, 1000)
     for page in g:
-        results = findBase(page, platform)
-        datas = json.loads(results,encoding="utf-8")
+        results = find_base(page, platform)
+        datas = json.loads(results, encoding="utf-8")
 
         if "login" in datas["values"] and datas["values"]["login"] == False:
             print(results)
@@ -78,8 +79,9 @@ def manageData(platform, exec_mode="000001"):
         if exec_mode[-1] == "1":
             yield datas
 
-        if exec_mode[-2] == "1" or exec_mode[-3] == "1" or exec_mode[-4] == "1":
-            yield getUserinfos(datas)
+        if exec_mode[-2] == "1" or exec_mode[-3] == "1" \
+                or exec_mode[-4] == "1":
+            yield get_userinfos(datas)
 
         if exec_mode[-5] == "1":
             pass
@@ -117,29 +119,35 @@ def getUserData(datas):
             break
     return
 
-def writeUserData2File(platform,datas,data_type, beginDayId=None, exec_mode=None):
+def writeUserData2File(platform, datas,
+                       data_type, begin_day_id=None,
+                       exe_mode=None):
     '''
     write user base data to ****.dat .
     '''
     if data_type=="Session":
         if exec_mode == "001000":
-            with open('./user-file/{data_type}{platform}_all.json'.format(data_type=data_type,
-                                                                                   platform=("Ios" if platform > 1 else "Android")
-                                                                                  ),
+            with open('./user_file/{data_type}{platform}_all.json'.format(
+                    data_type=data_type,
+                    platform=("Ios" if platform > 1 else "Android")),
                       'a') as f:
                 f.writelines(json.dumps(datas, ensure_ascii=False) + '\n')
         else:
-            with open('./user-file/{data_type}{platform}_{beginDayId}.json'.format(data_type=data_type,
-                                                                                    platform=("Ios" if platform > 1 else "Android"),
-                                                                                    beginDayId=beginDayId),
+            with open('./user_file/{data_type}{platform}_{beginDayId}.json'.format(
+                    data_type=data_type,
+                    platform=("Ios" if platform > 1 else "Android"),
+                    beginDayId=begin_day_id),
                       'a') as f:
                 f.writelines(json.dumps(datas, ensure_ascii=False) + '\n')
     else:
-        with open('./user-file/{data_type}{platform}.json'.format(data_type=data_type,
-                                                                 platform=("Ios" if platform>1 else "Android")) , 'a') as f:
+        with open('./user_file/{data_type}{platform}.json'.format(
+                data_type=data_type,
+                platform=("Ios" if platform > 1 else "Android")),
+                  'a') as f:
             f.writelines(json.dumps(datas, ensure_ascii=False) +'\n')
 
-def findUserInfos(platform,uid):
+
+def findUserInfos(platform, uid):
     '''
     description: find all user UserInfos data.
     uid: user id  
@@ -148,6 +156,7 @@ def findUserInfos(platform,uid):
     result = queryUserInfos(platform, uid)
     # print (result)
     return result
+
 
 def queryUserInfos(platform, uid):
 
@@ -161,13 +170,30 @@ def queryUserInfos(platform, uid):
     # print (result.text)
     return result.text
 
-def sessions(platform, uid, beginDayId):
+
+def sessions(platform, uid, begin_day_id):
     url = 'https://zhugeio.com/appuser/sessions.jsp'
     data = {
         "appId": 48971,
         "platform": platform,
         "uid": uid,
-        "beginDayId": beginDayId
+        "beginDayId": begin_day_id
+    }
+    result = requests.post(url, cookies=cookies, data=data)
+    # print (result.text)
+    return result.text
+
+
+def sessions_attr_info(plat_form, uid, event_id, session_id, uuid, begin_date):
+    url = 'https://zhugeio.com/appuser/querySessionAttrInfos.jsp'
+    data = {
+        "appId": 48971,
+        "platform": plat_form,
+        "uid": uid,
+        "eventId": event_id,
+        "sessionId": session_id,
+        "uuid": uuid,
+        "beginDate": begin_date
     }
     result = requests.post(url, cookies=cookies, data=data)
     # print (result.text)
@@ -178,7 +204,7 @@ def getUserId(platform, exec_mode):
             for userid, first_visit_time in userid_generator:
                 yield userid
 
-def getUserInfosData(platform,exec_mode, userid):
+def getUserInfosData(platform, exec_mode, userid):
     '''
     deal data by UserInfos mode.                
     '''
@@ -214,6 +240,24 @@ def writeBaseData(platform, exec_mode):
                 build_data[k] = v
             writeUserData2File(platform, build_data, data_type="Base")
 
+
+def get_session_ip(plat_form, user_id, session_info):
+    if len(session_info["events"]) == 0:
+        return ""
+    uuid = session_info["events"][0]["uuid"]
+    begin_date = session_info["events"][0]["beginDate"]
+    event_id = session_info["events"][0]["eventId"]
+
+    session_id = session_info["sessionId"]
+
+    result = sessions_attr_info(plat_form, user_id, event_id, session_id, uuid, begin_date)
+
+    result_json = json.loads(result)
+    for env_info in result_json["app_data"][0]["env_infos"]:
+        if env_info["name"] == "ip":
+            return env_info["value"]
+
+
 def writeUserSessionsYestData(platform, exec_mode, beginDayId=None):
     '''
         deal data by sessions mode.                
@@ -226,7 +270,12 @@ def writeUserSessionsYestData(platform, exec_mode, beginDayId=None):
         for sessionInfo in buildSessionsData(result_js):
             sessionInfo["zg_id"] = userid
             sessionInfo["beginDayId"] = beginDayId
-            writeUserData2File(platform, sessionInfo,data_type="Session",beginDayId=beginDayId, exec_mode=exec_mode)
+            sessionInfo["ip"] = get_session_ip(platform, userid, sessionInfo)
+            writeUserData2File(platform,
+                               sessionInfo,
+                               data_type="Session",
+                               begin_day_id=beginDayId,
+                               exe_mode=exec_mode)
 
 def writeUserSessionsAllData(platform, exec_mode, beginDayId=None):
     '''
@@ -243,30 +292,34 @@ def writeUserSessionsAllData(platform, exec_mode, beginDayId=None):
             for sessionInfo in buildSessionsData(result_js):
                 sessionInfo["zg_id"] = userid
                 sessionInfo["beginDayId"] = beginDayId
-                writeUserData2File(platform, sessionInfo,data_type="Session",beginDayId=beginDayId, exec_mode=exec_mode)
+                writeUserData2File(platform,
+                                   sessionInfo,
+                                   data_type="Session",
+                                   begin_day_id=beginDayId,
+                                   exe_mode=exec_mode)
 
-def getDayid(platform, exec_mode,userid):
-    _, _, sessionDays = getUserInfosData(platform, exec_mode,userid)
+def getDayid(platform, exec_mode, user_id):
+    _, _, sessionDays = getUserInfosData(platform, exec_mode, user_id)
     for sessionDay in sessionDays:
         if sessionDay["numbers"] != 0:
             yield sessionDay["dayId"]
 
 def dealData(platform,exec_mode):
-    if exec_mode[-1]=="1":
+    if exec_mode[-1] is "1":
         writeBaseData(platform, exec_mode)
 
-    if exec_mode[-2]=="1":
+    if exec_mode[-2] is "1":
         writeUserInfosData(platform, exec_mode)
 
-    if exec_mode[-3]=="1":
+    if exec_mode[-3] is "1":
         yesterday = datetime.datetime.now() - datetime.timedelta(days=1)
 
-        beginDayId = int(yesterday.strftime("%Y%m%d"))
-        writeUserSessionsYestData(platform,exec_mode, beginDayId)
+        begin_day_id = int(yesterday.strftime("%Y%m%d"))
+        writeUserSessionsYestData(platform, exec_mode, begin_day_id)
 
-    if exec_mode[-4]=="1":
+    if exec_mode[-4] is "1":
 
-        writeUserSessionsAllData(platform,exec_mode)
+        writeUserSessionsAllData(platform, exec_mode)
 
 if __name__ == "__main__":
     '''
@@ -277,23 +330,12 @@ if __name__ == "__main__":
                     | status 0: not deal, 1: write all Sessions data.
       platform: 1 or 2  1:Android 2:ios
       '''
-    platform = 1
-    # page = 2
+    platform = 2
 
-    currentUser()
-
-    #test find.jsp.
-    # find(page,platform)
-
-    # test find userid.
-    # for userid in getUserid(platform):
-    #     print(userid)
-
-    #test write base data.
-    # writeBase(platform)
+    current_user()
 
     exec_mode = "000100"
-    dealData(platform,exec_mode)
+    dealData(platform, exec_mode)
 
 
    
