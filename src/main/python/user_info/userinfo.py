@@ -5,10 +5,15 @@ import requests
 import datetime
 import os
 import sys
-from client import ZhugeClient
 
-client = ZhugeClient()
-cookies = client.login()
+basedir = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
+sys.path.append(basedir)
+
+from analog_login import login
+
+'''
+    function: get data from zhugeio and save data to json file.
+'''
 
 
 class UserInfo(object):
@@ -19,15 +24,27 @@ class UserInfo(object):
         #              ||| status 0: not deal, 1: write UserInfos data.
         #              || status 0: not deal, 1: write Yesterday's Sessions data.
         #              | status 0: not deal, 1: write all Sessions data.
-        # plat_form: 1 or 2  1:Android 2:ios
+        # plat_form: 1 or 2 or 3  1:android 2:ios 3:pc
+        # user_type 0 or 1  0:All user 1:Real user
 
-        self.plat_form = 1
-        self.exe_mode = "000010"
+        self.user_type = 1
 
-    # @classmethod
+        self.plat = {
+            1: "Android",
+            2: "Ios",
+            3: "PC"
+        }
+        self.plat_form = 3
+        if self.plat_form == 3:
+            self.app_id = 54453
+        else:
+            self.app_id = 48971
+        self.exe_mode = "000100"
+        self.cookies = login.login()
+
     def current_user(self):
         url = 'https://zhugeio.com/company/currentUser.jsp'
-        result = requests.get(url, cookies=cookies)
+        result = requests.get(url, cookies=self.cookies)
         print(result.text)
 
     def find_base(self, page):
@@ -38,7 +55,7 @@ class UserInfo(object):
 
         url = 'https://zhugeio.com/appuser/find.jsp'
         data = {
-                "appId": 48971,
+                "appId": self.app_id,
                 "platform": self.plat_form,
                 "json": "[]",
                 "page": page,
@@ -46,18 +63,28 @@ class UserInfo(object):
                 "total": 0,
                 "order_by": "last_visit_time"
                 }
-        result = requests.post(url, cookies=cookies, data=data)
+        result = requests.post(url, cookies=self.cookies, data=data)
         # print (result.text)
         return result.text
 
     def get_user_info(self, search_base_data):
         # description: get all user_id.
 
+        first_visit_time = ""
+        app_user_id = ""
         it = iter(search_base_data["values"]["users"])
-        for user_info in it:
-            for fixed_property in user_info["fixed_properties"]:
+        for search_user_info in it:
+            for fixed_property in search_user_info["fixed_properties"]:
+
                 if fixed_property["property_name"] == "first_visit_time":
-                    yield user_info["zg_id"], fixed_property["property_value"]
+                    first_visit_time = fixed_property["property_value"]
+                if fixed_property["property_name"] == "app_user_id":
+                    app_user_id = fixed_property["property_value"]
+            # get real user.
+            if self.user_type == 1 and app_user_id is not None:
+
+                yield (search_user_info["zg_id"],
+                       first_visit_time)
 
         return
 
@@ -92,7 +119,8 @@ class UserInfo(object):
             if self.exe_mode[-5] == "1":
                 pass
 
-    def build_base_data(self, user_datas):
+    @staticmethod
+    def build_base_data(user_datas):
 
         for name, value in user_datas.items():
             if name != "zg_id":
@@ -101,21 +129,24 @@ class UserInfo(object):
 
         return "done"
 
-    def build_user_info_data(self, user_data):
+    @staticmethod
+    def build_user_info_data(user_data):
 
         for data in user_data["app_data"]["user"]["app_user"]:
             yield data["name"], data["value"]
 
         return "done"
 
-    def build_sessions_data(self, user_data):
+    @staticmethod
+    def build_sessions_data(user_data):
 
         for sessionInfo in user_data["values"]["sessionInfos"]:
             yield sessionInfo
 
         return "done"
 
-    def get_user_data(self, users):
+    @staticmethod
+    def get_user_data(users):
         for data in users["values"]["users"]:
             yield data
 
@@ -129,24 +160,24 @@ class UserInfo(object):
             if self.exe_mode == "001000":
                 with open('./user_file/{data_type}{platform}_all.json'.format(
                         data_type=data_type,
-                        platform=("Ios" if self.plat_form > 1 else "Android")),
-                          'a') as f:
+                        platform=self.plat[self.plat_form]),
+                        'a') as f:
                     f.writelines(json.dumps(datas, ensure_ascii=False) + '\n')
             else:
                 with open('./user_file/{data_type}{platform}_{beginDayId}.json'.format(
                         data_type=data_type,
-                        platform=("Ios" if self.plat_form > 1 else "Android"),
+                        platform=self.plat[self.plat_form],
                         beginDayId=begin_day_id),
                           'a') as f:
                     f.writelines(json.dumps(datas, ensure_ascii=False) + '\n')
         else:
             with open('./user_file/{data_type}{platform}.json'.format(
                     data_type=data_type,
-                    platform=("Ios" if self.plat_form > 1 else "Android")),
+                    platform=self.plat[self.plat_form]),
                       'a') as f:
                 f.writelines(json.dumps(datas, ensure_ascii=False) + '\n')
 
-    def find_user_info(self, plat_form, uid):
+    def find_user_info(self, uid):
         # description: find all user UserInfo data.
         # uid: user id
         # platform: 1 or 2  1:Android 2:ios
@@ -159,23 +190,23 @@ class UserInfo(object):
 
         url = 'https://zhugeio.com/appuser/queryUserInfos.jsp'
         data = {
-            "appId": 48971,
+            "appId": self.app_id,
             "platform": self.plat_form,
             "uid": uid
         }
-        result = requests.post(url, cookies=cookies, data=data)
+        result = requests.post(url, cookies=self.cookies, data=data)
         # print (result.text)
         return result.text
 
     def sessions(self, uid, begin_day_id):
         url = 'https://zhugeio.com/appuser/sessions.jsp'
         data = {
-            "appId": 48971,
+            "appId": self.app_id,
             "platform": self.plat_form,
             "uid": uid,
             "beginDayId": begin_day_id
         }
-        result = requests.post(url, cookies=cookies, data=data)
+        result = requests.post(url, cookies=self.cookies, data=data)
         # print (result.text)
         return result.text
 
@@ -184,7 +215,7 @@ class UserInfo(object):
                            uuid, begin_date):
         url = 'https://zhugeio.com/appuser/querySessionAttrInfos.jsp'
         data = {
-            "appId": 48971,
+            "appId": self.app_id,
             "platform": self.plat_form,
             "uid": uid,
             "eventId": event_id,
@@ -192,7 +223,7 @@ class UserInfo(object):
             "uuid": uuid,
             "beginDate": begin_date
         }
-        result = requests.post(url, cookies=cookies, data=data)
+        result = requests.post(url, cookies=self.cookies, data=data)
         # print (result.text)
         return result.text
 
@@ -201,20 +232,18 @@ class UserInfo(object):
                 for user_id, first_visit_time in user_id_generator:
                     yield user_id
 
-
     def get_user_infos_data(self, user_id):
         # deal data by UserInfo mode.
 
         app_user = {}
 
-        result = self.find_user_info(self.plat_form, user_id)
+        result = self.find_user_info(user_id)
         result_js = json.loads(result)
 
         for name, value in self.build_user_info_data(result_js):
             app_user[name] = value
 
         return result_js, app_user, result_js["app_data"]["user"]["sessionDays"]
-
 
     def write_user_infos_data(self):
         # deal data by UserInfos mode.
@@ -225,7 +254,6 @@ class UserInfo(object):
 
             self.write_user_data2file(result_js, data_type="UserInfos")
 
-
     def write_base_data(self):
         build_data = {}
         for datas in self.manage_data():
@@ -235,47 +263,57 @@ class UserInfo(object):
                     build_data[k] = v
                 self.write_user_data2file(build_data, data_type="Base")
 
-    def get_session_ip(self, user_id, session_info):
+    def get_session_info(self, user_id, session_info):
         if len(session_info["events"]) == 0:
             return ""
-        uuid = session_info["events"][0]["uuid"]
-        begin_date = session_info["events"][0]["beginDate"]
-        event_id = session_info["events"][0]["eventId"]
+        ip = ""
+        column_code = ""
+        for index, event in enumerate(session_info["events"]):
 
-        session_id = session_info["sessionId"]
+            result = self.sessions_attr_info(user_id,
+                                             event["eventId"],
+                                             session_info["sessionId"],
+                                             event["uuid"],
+                                             event["beginDate"])
 
-        result = self.sessions_attr_info(user_id,
-                                         event_id,
-                                         session_id,
-                                         uuid,
-                                         begin_date)
+            result_json = json.loads(result)
 
-        result_json = json.loads(result)
-        for env_info in result_json["app_data"][0]["env_infos"]:
-            if env_info["name"] == "ip":
-                return env_info["value"]
+            for env_info in result_json["app_data"][0]["env_infos"]:
+                if env_info["name"] == "ip":
+                    ip = env_info["value"]
+                    break
+
+            for attr_info in result_json["app_data"][0]["attr_infos"]:
+                if attr_info["attrName"] == "columnCode":
+                    column_code = attr_info["eventValue"]
+                    break
+
+            event["ip"] = ip
+            event["column_code"] = column_code
+            yield index, event
 
     def write_sessions_yest_data(self, begin_day_id=None):
         # deal data by sessions mode.
 
-        for userid in self.get_user_id():
-            result = self.sessions(userid, begin_day_id)
+        for user_id in self.get_user_id():
+            result = self.sessions(user_id, begin_day_id)
             result_js = json.loads(result)
 
             for sessionInfo in self.build_sessions_data(result_js):
-                sessionInfo["zg_id"] = userid
+                sessionInfo["zg_id"] = user_id
                 sessionInfo["beginDayId"] = begin_day_id
-                sessionInfo["ip"] = self.get_session_ip(userid, sessionInfo)
+
+                for index, event in self.get_session_info(user_id, sessionInfo):
+                    sessionInfo["events"][index] = event
+
                 self.write_user_data2file(
                                      sessionInfo,
                                      data_type="Session",
                                      begin_day_id=begin_day_id)
 
-    def write_sessions_all_data(self, begin_day_id=None):
-        '''
-            deal data by sessions mode.                
-            '''
-        # write sessions data.
+    def write_sessions_all_data(self):
+        # deal data by sessions mode.
+
         for user_id in self.get_user_id():
 
             # get this user dayId
@@ -286,6 +324,10 @@ class UserInfo(object):
                 for sessionInfo in self.build_sessions_data(result_js):
                     sessionInfo["zg_id"] = user_id
                     sessionInfo["beginDayId"] = begin_day_id
+                    sessionInfo["events"] = []
+
+                    for event in self.get_session_info(user_id, sessionInfo):
+                        sessionInfo["events"].append(event)
                     self.write_user_data2file(
                                          sessionInfo,
                                          data_type="Session",
@@ -321,12 +363,3 @@ if __name__ == "__main__":
     user_info.current_user()
 
     user_info.deal_data()
-
-
-   
-
-        
-
-
-
-

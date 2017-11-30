@@ -5,20 +5,29 @@ import csv
 import json
 import time
 
+'''
+    function: filter user data and save to csv.
+'''
+
 
 class FilterInfo(object):
     def __init__(self):
-        day_id = (datetime.datetime.now() -
-                  datetime.timedelta(days=1)).strftime("%Y%m%d")
+        day_id = (datetime.datetime.now()
+                  ).strftime("%Y%m%d")
         self.data_type = "Session"
-        self.platform = 2
+        self.plat = {
+            1: "Android",
+            2: "Ios",
+            3: "PC"
+        }
+        self.plat_form = 3
 
         self.beginDayId = day_id
 
     def read_session(self, zg_id):
         with open('./user_file/{data_type}{platform}_{beginDayId}.json'.format(
                 data_type=self.data_type,
-                platform=("Ios" if self.platform > 1 else "Android"),
+                platform=self.plat[self.plat_form],
                 beginDayId=self.beginDayId),
                   'r') as f:
             for read_line in f:
@@ -28,7 +37,7 @@ class FilterInfo(object):
 
     def read_user_info(self):
         with open('./user_file/UserInfos{platform}.json'.format(
-                platform=("Ios" if self.platform > 1 else "Android")),
+                platform=self.plat[self.plat_form]),
                   'r') as f:
 
             for read_line in f:
@@ -37,13 +46,29 @@ class FilterInfo(object):
                 yield (line_dic["app_data"]["user"]["app_user"]["zg_id"],
                        line_dic["app_data"]["user"]["app_user"]["app_user_id"])
 
-    def write_csv(self, user_id, events, ip):
+    def init_write_csv(self):
         with open('./user_filter/UserSession{platform}.csv'.format(
-                platform=("Ios" if self.platform > 1 else "Android")),
+                platform=self.plat[self.plat_form]),
                 'a') as csv_file:
             fieldnames = ["user_id", "event_time",
                           "event_content", "ip",
-                          "source", "code"]
+                          "platform", "encode"]
+
+            writer = csv.DictWriter(csv_file, fieldnames)
+            writer.writerow({"user_id": "user_id",
+                             "event_time": "event_time",
+                             "event_content": "event_content",
+                             "ip": "ip",
+                             "platform": "platform",
+                             "encode": "encode"})
+
+    def write_csv(self, user_id, events):
+        with open('./user_filter/UserSession{platform}.csv'.format(
+                platform=self.plat[self.plat_form]),
+                'a') as csv_file:
+            fieldnames = ["user_id", "event_time",
+                          "event_content", "ip",
+                          "platform", "encode"]
             writer = csv.DictWriter(csv_file, fieldnames)
             for event in events:
                 time_array = time.localtime(event["beginDate"]/1000)
@@ -52,9 +77,10 @@ class FilterInfo(object):
                 writer.writerow({"user_id": user_id,
                                  "event_time": str_style_time,
                                  "event_content": event["eventName"],
-                                 "ip": ip,
-                                 "source": self.platform,
-                                 "code": ""})
+                                 "ip": event["ip"],
+                                 "platform": (5 if self.plat_form == 3
+                                              else self.plat_form),
+                                 "encode": str(event["column_code"])})
 
     def write_filter_info(self):
         for search_zg_id, search_user_id in self.read_user_info():
@@ -66,10 +92,10 @@ class FilterInfo(object):
                         continue
                     # write user events data.
                     self.write_csv(user_id=search_user_id,
-                                   events=line["events"],
-                                   ip=line["ip"])
+                                   events=line["events"])
 
 if __name__ == "__main__":
 
     filter_info = FilterInfo()
+    filter_info.init_write_csv()
     filter_info.write_filter_info()
