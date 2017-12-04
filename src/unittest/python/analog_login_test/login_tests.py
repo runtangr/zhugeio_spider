@@ -6,7 +6,8 @@ import unittest
 import requests
 from analog_login import login
 
-class analog_login(unittest.TestCase):
+
+class Client(unittest.TestCase):
 
     def test_login(self):
         cookie = login.login()

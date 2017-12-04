@@ -4,5 +4,9 @@ services:
 
   useraction:
       build: ./
-      command: python uer_info/useraction_sync.py
+      command: python uer_info/userinfo.py
+
+  zhugeio_mongo:
+      image: mongo
+
 

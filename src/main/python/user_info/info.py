@@ -5,18 +5,19 @@ import requests
 import datetime
 import os
 import sys
-
-basedir = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
-sys.path.append(basedir)
-
-from analog_login import login
+from client import ZhugeClient, ZhugeToken
+from config import (
+    CURRENT_USER, FIND_URL, USER_INFO_URL, SESSION_URL,
+    SESSION_ATTR_INFO_URL, INFO_TYPE, ALL_SESSION_PATH,
+    YEST_SESSION_PATH, INFO_PATH, BASE_PATH, PLATFORM,
+    INFO_DIR, TOKEN_FILE, APP_INFO)
 
 '''
     function: get data from zhugeio and save data to json file.
 '''
 
 
-class UserInfo(object):
+class UserInfo(ZhugeClient):
 
     def __init__(self):
         # exe_mode: "000000"
@@ -24,28 +25,71 @@ class UserInfo(object):
         #              ||| status 0: not deal, 1: write UserInfos data.
         #              || status 0: not deal, 1: write Yesterday's Sessions data.
         #              | status 0: not deal, 1: write all Sessions data.
-        # plat_form: 1 or 2 or 3  1:android 2:ios 3:pc
+        # platform: 1 or 2 or 3  1:android 2:ios 3:pc
         # user_type 0 or 1  0:All user 1:Real user
+
+        super(UserInfo, self).__init__()
 
         self.user_type = 1
 
-        self.plat = {
-            1: "Android",
-            2: "Ios",
-            3: "PC"
-        }
-        self.plat_form = 3
-        if self.plat_form == 3:
-            self.app_id = 54453
-        else:
-            self.app_id = 48971
+        self.platform = 3
+        self.platform_content = PLATFORM[self.platform]
+
+        self.app_id = self.get_app_id()
+
         self.exe_mode = "000100"
-        self.cookies = login.login()
+
+        self.client = ZhugeClient()
 
     def current_user(self):
-        url = 'https://zhugeio.com/company/currentUser.jsp'
-        result = requests.get(url, cookies=self.cookies)
+
+        result = self._session.get(CURRENT_USER)
         print(result.text)
+
+    def get_app_id(self):
+        res = self._session.get(APP_INFO)
+        res_dict = res.json()
+        app_id = res_dict['applist'][0]['id']
+
+        return app_id
+
+    def query_user_info(self, uid):
+
+        data = {
+            "appId": self.app_id,
+            "platform": self.platform,
+            "uid": uid
+        }
+        result = self._session.post(USER_INFO_URL, data=data)
+        # print (result.text)
+        return result
+
+    def sessions(self, uid, begin_day_id):
+        data = {
+            "appId": self.app_id,
+            "platform": self.platform,
+            "uid": uid,
+            "beginDayId": begin_day_id
+        }
+        result = self._session.post(SESSION_URL, data=data)
+        # print (result.text)
+        return result
+
+    def sessions_attr_info(self, uid,
+                           event_id, session_id,
+                           uuid, begin_date):
+        data = {
+            "appId": self.app_id,
+            "platform": self.platform,
+            "uid": uid,
+            "eventId": event_id,
+            "sessionId": session_id,
+            "uuid": uuid,
+            "beginDate": begin_date
+        }
+        result = self._session.post(SESSION_ATTR_INFO_URL, data=data)
+        # print (result.text)
+        return result
 
     def find_base(self, page):
         # description: find all user base data.
@@ -53,19 +97,18 @@ class UserInfo(object):
         # page: 0~
         # platform: 1 or 2  1:Android 2:ios
 
-        url = 'https://zhugeio.com/appuser/find.jsp'
         data = {
                 "appId": self.app_id,
-                "platform": self.plat_form,
+                "platform": self.platform,
                 "json": "[]",
                 "page": page,
                 "rows": 20,
                 "total": 0,
                 "order_by": "last_visit_time"
                 }
-        result = requests.post(url, cookies=self.cookies, data=data)
+        result = self._session.post(FIND_URL, data=data)
         # print (result.text)
-        return result.text
+        return result
 
     def get_user_info(self, search_base_data):
         # description: get all user_id.
@@ -85,7 +128,9 @@ class UserInfo(object):
 
                 yield (search_user_info["zg_id"],
                        first_visit_time)
-
+            elif self.user_type != 1:
+                yield (search_user_info["zg_id"],
+                       first_visit_time)
         return
 
     def manage_data(self):
@@ -99,7 +144,8 @@ class UserInfo(object):
         g = range(1, 1000)
         for page in g:
             results = self.find_base(page)
-            base_data = json.loads(results, encoding="utf-8")
+            # base_data = json.loads(results, encoding="utf-8")
+            base_data = results.json()
 
             if ("login" in base_data["values"] and
                     base_data["values"]["login"] is False):
@@ -152,30 +198,33 @@ class UserInfo(object):
 
         return
 
+    @staticmethod
+    def save_file(path, data):
+
+        with open(path, 'a') as f:
+            f.writelines(''.join([json.dumps(data, ensure_ascii=False), '\n']))
+
     def write_user_data2file(self, datas,
                              data_type, begin_day_id=None):
         # write user base data to ****.dat .
 
+        if not os.path.exists(INFO_DIR):
+            os.makedirs(INFO_DIR)
         if data_type == "Session":
             if self.exe_mode == "001000":
-                with open('./user_file/{data_type}{platform}_all.json'.format(
-                        data_type=data_type,
-                        platform=self.plat[self.plat_form]),
-                        'a') as f:
-                    f.writelines(json.dumps(datas, ensure_ascii=False) + '\n')
+                session_path = ALL_SESSION_PATH.format(self.platform_content)
+                self.save_file(session_path, datas)
             else:
-                with open('./user_file/{data_type}{platform}_{beginDayId}.json'.format(
-                        data_type=data_type,
-                        platform=self.plat[self.plat_form],
-                        beginDayId=begin_day_id),
-                          'a') as f:
-                    f.writelines(json.dumps(datas, ensure_ascii=False) + '\n')
-        else:
-            with open('./user_file/{data_type}{platform}.json'.format(
-                    data_type=data_type,
-                    platform=self.plat[self.plat_form]),
-                      'a') as f:
-                f.writelines(json.dumps(datas, ensure_ascii=False) + '\n')
+                yest_session_path = YEST_SESSION_PATH.format(platform=self.platform_content,
+                                                             begin_day_id=begin_day_id)
+                self.save_file(yest_session_path, datas)
+        elif data_type == "Infos":
+            info_path = INFO_PATH.format(self.platform_content)
+            self.save_file(info_path, datas)
+
+        elif data_type == "Base":
+            base_path = BASE_PATH.format(self.platform_content)
+            self.save_file(base_path, datas)
 
     def find_user_info(self, uid):
         # description: find all user UserInfo data.
@@ -185,47 +234,6 @@ class UserInfo(object):
         result = self.query_user_info(uid)
         # print (result)
         return result
-
-    def query_user_info(self, uid):
-
-        url = 'https://zhugeio.com/appuser/queryUserInfos.jsp'
-        data = {
-            "appId": self.app_id,
-            "platform": self.plat_form,
-            "uid": uid
-        }
-        result = requests.post(url, cookies=self.cookies, data=data)
-        # print (result.text)
-        return result.text
-
-    def sessions(self, uid, begin_day_id):
-        url = 'https://zhugeio.com/appuser/sessions.jsp'
-        data = {
-            "appId": self.app_id,
-            "platform": self.plat_form,
-            "uid": uid,
-            "beginDayId": begin_day_id
-        }
-        result = requests.post(url, cookies=self.cookies, data=data)
-        # print (result.text)
-        return result.text
-
-    def sessions_attr_info(self, uid,
-                           event_id, session_id,
-                           uuid, begin_date):
-        url = 'https://zhugeio.com/appuser/querySessionAttrInfos.jsp'
-        data = {
-            "appId": self.app_id,
-            "platform": self.plat_form,
-            "uid": uid,
-            "eventId": event_id,
-            "sessionId": session_id,
-            "uuid": uuid,
-            "beginDate": begin_date
-        }
-        result = requests.post(url, cookies=self.cookies, data=data)
-        # print (result.text)
-        return result.text
 
     def get_user_id(self):
         for user_id_generator in self.manage_data():
@@ -238,7 +246,7 @@ class UserInfo(object):
         app_user = {}
 
         result = self.find_user_info(user_id)
-        result_js = json.loads(result)
+        result_js = result.json()
 
         for name, value in self.build_user_info_data(result_js):
             app_user[name] = value
@@ -252,7 +260,7 @@ class UserInfo(object):
 
             result_js["app_data"]["user"]["app_user"] = app_user
 
-            self.write_user_data2file(result_js, data_type="UserInfos")
+            self.write_user_data2file(result_js, data_type="Infos")
 
     def write_base_data(self):
         build_data = {}
@@ -276,7 +284,7 @@ class UserInfo(object):
                                              event["uuid"],
                                              event["beginDate"])
 
-            result_json = json.loads(result)
+            result_json = result.json()
 
             for env_info in result_json["app_data"][0]["env_infos"]:
                 if env_info["name"] == "ip":
@@ -297,7 +305,7 @@ class UserInfo(object):
 
         for user_id in self.get_user_id():
             result = self.sessions(user_id, begin_day_id)
-            result_js = json.loads(result)
+            result_js = result.json()
 
             for sessionInfo in self.build_sessions_data(result_js):
                 sessionInfo["zg_id"] = user_id
@@ -320,7 +328,7 @@ class UserInfo(object):
             for begin_day_id in self.get_day_id(user_id):
                 # get session data by user_id and beginDayId.
                 result = self.sessions(user_id, begin_day_id)
-                result_js = json.loads(result)
+                result_js = result.json()
                 for sessionInfo in self.build_sessions_data(result_js):
                     sessionInfo["zg_id"] = user_id
                     sessionInfo["beginDayId"] = begin_day_id

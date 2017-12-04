@@ -4,6 +4,9 @@ import datetime
 import csv
 import json
 import time
+from config import (FIELD_NAMES, FILTER_PATH, YEST_SESSION_PATH,
+                    INFO_PATH, PLATFORM, FILTER_PATH, FILTER_INFO_DIR)
+import os
 
 '''
     function: filter user data and save to csv.
@@ -12,23 +15,17 @@ import time
 
 class FilterInfo(object):
     def __init__(self):
-        day_id = (datetime.datetime.now()
-                  ).strftime("%Y%m%d")
         self.data_type = "Session"
-        self.plat = {
-            1: "Android",
-            2: "Ios",
-            3: "PC"
-        }
-        self.plat_form = 3
+        self.platform = 3
 
-        self.beginDayId = day_id
+        self.begin_day_id = (datetime.datetime.now()
+                             - datetime.timedelta(days=4)).strftime("%Y%m%d")
+        self.platform_content = PLATFORM[self.platform]
 
     def read_session(self, zg_id):
-        with open('./user_file/{data_type}{platform}_{beginDayId}.json'.format(
-                data_type=self.data_type,
-                platform=self.plat[self.plat_form],
-                beginDayId=self.beginDayId),
+        yest_session_path = YEST_SESSION_PATH.format(platform=self.platform_content,
+                                                     begin_day_id=self.begin_day_id)
+        with open(yest_session_path,
                   'r') as f:
             for read_line in f:
                 line_dic = json.loads(read_line)
@@ -36,10 +33,8 @@ class FilterInfo(object):
                     yield line_dic
 
     def read_user_info(self):
-        with open('./user_file/UserInfos{platform}.json'.format(
-                platform=self.plat[self.plat_form]),
-                  'r') as f:
-
+        info_path = INFO_PATH.format(self.platform_content)
+        with open(info_path, 'r') as f:
             for read_line in f:
                 line_dic = json.loads(read_line)
 
@@ -47,40 +42,36 @@ class FilterInfo(object):
                        line_dic["app_data"]["user"]["app_user"]["app_user_id"])
 
     def init_write_csv(self):
-        with open('./user_filter/UserSession{platform}.csv'.format(
-                platform=self.plat[self.plat_form]),
-                'a') as csv_file:
-            fieldnames = ["user_id", "event_time",
-                          "event_content", "ip",
-                          "platform", "encode"]
 
-            writer = csv.DictWriter(csv_file, fieldnames)
-            writer.writerow({"user_id": "user_id",
-                             "event_time": "event_time",
-                             "event_content": "event_content",
-                             "ip": "ip",
-                             "platform": "platform",
-                             "encode": "encode"})
+        if not os.path.exists(FILTER_INFO_DIR):
+            os.makedirs(FILTER_INFO_DIR)
+        filter_path = FILTER_PATH.format(platform=self.platform_content,
+                                         begin_day_id=self.begin_day_id)
+
+        with open(filter_path, 'a') as csv_file:
+
+            writer = csv.DictWriter(csv_file, FIELD_NAMES)
+
+            field_dict = {key: key for key in FIELD_NAMES}
+            writer.writerow(field_dict)
 
     def write_csv(self, user_id, events):
-        with open('./user_filter/UserSession{platform}.csv'.format(
-                platform=self.plat[self.plat_form]),
-                'a') as csv_file:
-            fieldnames = ["user_id", "event_time",
-                          "event_content", "ip",
-                          "platform", "encode"]
-            writer = csv.DictWriter(csv_file, fieldnames)
+        filter_path = FILTER_PATH.format(platform=self.platform_content,
+                                         begin_day_id=self.begin_day_id)
+        with open(filter_path, 'a') as csv_file:
+
+            writer = csv.DictWriter(csv_file, FIELD_NAMES)
             for event in events:
                 time_array = time.localtime(event["beginDate"]/1000)
                 str_style_time = time.strftime("%Y-%m-%d %H:%M:%S", time_array)
 
-                writer.writerow({"user_id": user_id,
-                                 "event_time": str_style_time,
-                                 "event_content": event["eventName"],
-                                 "ip": event["ip"],
-                                 "platform": (5 if self.plat_form == 3
-                                              else self.plat_form),
-                                 "encode": str(event["column_code"])})
+                writer.writerow({FIELD_NAMES[0]: int(user_id),
+                                 FIELD_NAMES[1]: str_style_time,
+                                 FIELD_NAMES[2]: event["eventName"],
+                                 FIELD_NAMES[3]: event["ip"],
+                                 FIELD_NAMES[4]: (5 if self.platform == 3
+                                                  else self.platform),
+                                 FIELD_NAMES[5]: str(event["column_code"])})
 
     def write_filter_info(self):
         for search_zg_id, search_user_id in self.read_user_info():
