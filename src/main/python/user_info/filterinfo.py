@@ -4,6 +4,7 @@ import datetime
 import csv
 import json
 import time
+import logging
 from config import (FIELD_NAMES, FILTER_PATH, YEST_SESSION_PATH,
                     INFO_PATH, PLATFORM, FILTER_PATH, FILTER_INFO_DIR)
 import os
@@ -19,7 +20,7 @@ class FilterInfo(object):
         self.platform = 3
 
         self.begin_day_id = (datetime.datetime.now()
-                             - datetime.timedelta(days=4)).strftime("%Y%m%d")
+                             - datetime.timedelta(days=1)).strftime("%Y%m%d")
         self.platform_content = PLATFORM[self.platform]
 
     def read_session(self, zg_id):
@@ -82,6 +83,12 @@ class FilterInfo(object):
                     if len(line["events"]) is 0:
                         continue
                     # write user events data.
+                    try:
+                        user_id_int = int(search_user_id)
+                    except ValueError:
+                        logging.warning("user_id:{}".format(search_user_id))
+                        continue
+
                     self.write_csv(user_id=search_user_id,
                                    events=line["events"])
 

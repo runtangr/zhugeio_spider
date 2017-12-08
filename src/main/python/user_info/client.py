@@ -4,12 +4,31 @@ import requests
 import json
 import time
 import os
+from requests.auth import AuthBase
 from exception import LoginException
-from config import LOGIN_URL, TOKEN_FILE
+from config import LOGIN_URL, TOKEN_FILE, CLIENT_ID
 
 '''
 user login and save token.
 '''
+
+
+class ZhugeOAuth(AuthBase):
+    def __init__(self, token=None):
+        self._token = token
+
+    def __call__(self, r):
+        if self._token is None:
+            auth_str = '{client_id}'.format(
+                client_id=self._token
+            )
+        else:
+            auth_str = '{token}'.format(
+
+                token=str(self._token)
+            )
+        r.headers['Authorization'] = auth_str
+        return r
 
 
 class ZhugeToken:
@@ -47,10 +66,15 @@ class ZhugeClient:
     def __init__(self, token_file=TOKEN_FILE):
         self.token_file = token_file
         self._session = requests.session()
-        self.login()
+        if os.path.exists(token_file):
+            # self._token = ZhugeToken.from_file(token_file)
+            self.login()
+        else:
+            self.login()
+        self.auth = ZhugeOAuth(self._token)
 
-    def save_token(self, data):
-        res = self._session.post(LOGIN_URL, data=data)
+    def save_token(self, auth, data):
+        res = self._session.post(LOGIN_URL, auth=ZhugeOAuth(), data=data)
         try:
             json_dict = res.json()
             if 'error' in json_dict:
@@ -59,15 +83,15 @@ class ZhugeClient:
         except (ValueError, KeyError) as e:
             raise LoginException(str(e))
         else:
-            ZhugeToken.save_file(self.token_file, json_dict['user'])
+            ZhugeToken.save_file(self.token_file, json_dict)
 
     def login(self):
-
+        self.login_auth = ZhugeOAuth()
         json_data = {"username": os.environ.get("username"),
                      "password": os.environ.get("password"),
                      "type": 0, "location": ""}
         data = {"data": json.dumps(json_data)}
-        self.save_token(data)
+        self.save_token(self.login_auth, data)
 
 
 if __name__ == '__main__':

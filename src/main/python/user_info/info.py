@@ -30,16 +30,19 @@ class UserInfo(ZhugeClient):
 
         super(UserInfo, self).__init__()
 
-        self.user_type = 1
+        self.user_type = 0
 
         self.platform = 3
         self.platform_content = PLATFORM[self.platform]
+        self.exe_mode = "000001"
 
-        self.app_id = self.get_app_id()
-
-        self.exe_mode = "000100"
+        self.headers = {}
 
         self.client = ZhugeClient()
+
+        # self.client.auth(self)
+
+        self.app_id = self.get_app_id()
 
     def current_user(self):
 

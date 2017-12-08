@@ -10,6 +10,8 @@ APP_INFO = 'https://zhugeio.com/data/v2ajaxGetDataByApp.jsp'
 
 TOKEN_FILE = 'token.json'
 
+CLIENT_ID = '8d5227e0aaaa4797a763ac64e0c3b8'
+
 FIELD_NAMES = ['Userid', 'fwDatetime',
                'qxmc', 'fwIP',
                'fwSource', 'fwCode']
