@@ -1,16 +1,17 @@
 # -*- coding:utf-8 -*-
 
 import json
-import requests
 import datetime
 import os
-import sys
+import asyncio
+import aiohttp
+import math
 from client import ZhugeClient, ZhugeToken
 from config import (
     CURRENT_USER, FIND_URL, USER_INFO_URL, SESSION_URL,
     SESSION_ATTR_INFO_URL, INFO_TYPE, ALL_SESSION_PATH,
     YEST_SESSION_PATH, INFO_PATH, BASE_PATH, PLATFORM,
-    INFO_DIR, TOKEN_FILE, APP_INFO)
+    INFO_DIR, TOKEN_FILE, APP_INFO, USER_NUM)
 
 '''
     function: get data from zhugeio and save data to json file.
@@ -34,13 +35,11 @@ class UserInfo(ZhugeClient):
 
         self.platform = 3
         self.platform_content = PLATFORM[self.platform]
-        self.exe_mode = "000001"
+        self.exe_mode = "000111"
 
         self.headers = {}
 
         self.client = ZhugeClient()
-
-        # self.client.auth(self)
 
         self.app_id = self.get_app_id()
 
@@ -50,37 +49,40 @@ class UserInfo(ZhugeClient):
         print(result.text)
 
     def get_app_id(self):
-        res = self._session.get(APP_INFO)
+        res = self._session.get(APP_INFO, headers=self.headers, auth=self.auth)
         res_dict = res.json()
         app_id = res_dict['applist'][0]['id']
 
         return app_id
 
-    def query_user_info(self, uid):
+    async def query_user_info(self, uid):
 
         data = {
             "appId": self.app_id,
             "platform": self.platform,
             "uid": uid
         }
-        result = self._session.post(USER_INFO_URL, data=data)
+        async with aiohttp.ClientSession(cookies=self._session.cookies) as session:
+            async with session.post(url=USER_INFO_URL, data=data) as resp:
+                rs = await resp.json()
         # print (result.text)
-        return result
+        return rs
 
-    def sessions(self, uid, begin_day_id):
+    async def sessions(self, uid, begin_day_id):
         data = {
             "appId": self.app_id,
             "platform": self.platform,
             "uid": uid,
             "beginDayId": begin_day_id
         }
-        result = self._session.post(SESSION_URL, data=data)
-        # print (result.text)
-        return result
+        async with aiohttp.ClientSession(cookies=self._session.cookies) as session:
+            async with session.post(url=SESSION_URL, data=data) as resp:
+                rs = await resp.json()
+        return rs
 
-    def sessions_attr_info(self, uid,
-                           event_id, session_id,
-                           uuid, begin_date):
+    async def sessions_attr_info(self, uid,
+                                 event_id, session_id,
+                                 uuid, begin_date):
         data = {
             "appId": self.app_id,
             "platform": self.platform,
@@ -90,15 +92,14 @@ class UserInfo(ZhugeClient):
             "uuid": uuid,
             "beginDate": begin_date
         }
-        result = self._session.post(SESSION_ATTR_INFO_URL, data=data)
-        # print (result.text)
-        return result
 
-    def find_base(self, page):
-        # description: find all user base data.
-        #
-        # page: 0~
-        # platform: 1 or 2  1:Android 2:ios
+        async with aiohttp.ClientSession(cookies=self._session.cookies) \
+                as session:
+            async with session.post(url=SESSION_ATTR_INFO_URL, data=data) as resp:
+                rs = await resp.json()
+        return rs
+
+    async def find_base(self, page):
 
         data = {
                 "appId": self.app_id,
@@ -109,9 +110,11 @@ class UserInfo(ZhugeClient):
                 "total": 0,
                 "order_by": "last_visit_time"
                 }
-        result = self._session.post(FIND_URL, data=data)
+        async with aiohttp.ClientSession(cookies=self._session.cookies) as session:
+            async with session.post(url=FIND_URL, data=data) as resp:
+                rs = await resp.json()
         # print (result.text)
-        return result
+        return rs
 
     def get_user_info(self, search_base_data):
         # description: get all user_id.
@@ -135,38 +138,6 @@ class UserInfo(ZhugeClient):
                 yield (search_user_info["zg_id"],
                        first_visit_time)
         return
-
-    def manage_data(self):
-        # mange user data by find module. multitask
-        # deal data by different mode.
-        # exec_mode: "000000"
-        #                ||| status 0: not deal, 1: write base data.
-        #                || status 0: not deal, 1: write UserInfo data.
-        #                | status 0: not deal, 1: write Sessions data.
-
-        g = range(1, 1000)
-        for page in g:
-            results = self.find_base(page)
-            # base_data = json.loads(results, encoding="utf-8")
-            base_data = results.json()
-
-            if ("login" in base_data["values"] and
-                    base_data["values"]["login"] is False):
-                print(results)
-                break
-            if len(base_data["values"]["users"]) == 0:
-                break
-
-            if self.exe_mode[-1] == "1":
-                yield base_data
-
-            if (self.exe_mode[-2] == "1"
-                    or self.exe_mode[-3] == "1"
-                    or self.exe_mode[-4] == "1"):
-                yield self.get_user_info(base_data)
-
-            if self.exe_mode[-5] == "1":
-                pass
 
     @staticmethod
     def build_base_data(user_datas):
@@ -218,8 +189,9 @@ class UserInfo(ZhugeClient):
                 session_path = ALL_SESSION_PATH.format(self.platform_content)
                 self.save_file(session_path, datas)
             else:
-                yest_session_path = YEST_SESSION_PATH.format(platform=self.platform_content,
-                                                             begin_day_id=begin_day_id)
+                yest_session_path = YEST_SESSION_PATH.\
+                    format(platform=self.platform_content,
+                           begin_day_id=begin_day_id)
                 self.save_file(yest_session_path, datas)
         elif data_type == "Infos":
             info_path = INFO_PATH.format(self.platform_content)
@@ -229,65 +201,60 @@ class UserInfo(ZhugeClient):
             base_path = BASE_PATH.format(self.platform_content)
             self.save_file(base_path, datas)
 
-    def find_user_info(self, uid):
-        # description: find all user UserInfo data.
-        # uid: user id
-        # platform: 1 or 2  1:Android 2:ios
-
-        result = self.query_user_info(uid)
-        # print (result)
-        return result
-
-    def get_user_id(self):
-        for user_id_generator in self.manage_data():
-                for user_id, first_visit_time in user_id_generator:
-                    yield user_id
-
-    def get_user_infos_data(self, user_id):
+    async def get_user_infos_data(self, user_id):
         # deal data by UserInfo mode.
 
         app_user = {}
-
-        result = self.find_user_info(user_id)
-        result_js = result.json()
+        result_js = await self.query_user_info(user_id)
 
         for name, value in self.build_user_info_data(result_js):
             app_user[name] = value
 
         return result_js, app_user, result_js["app_data"]["user"]["sessionDays"]
 
-    def write_user_infos_data(self):
+    async def write_user_infos_data(self):
         # deal data by UserInfos mode.
-        for search_user_id in self.get_user_id():
-            result_js, app_user, _ = self.get_user_infos_data(search_user_id)
+
+        async for search_user_id in self.get_user_id():
+            result_js, app_user, _ = await \
+                self.get_user_infos_data(search_user_id)
 
             result_js["app_data"]["user"]["app_user"] = app_user
 
             self.write_user_data2file(result_js, data_type="Infos")
 
-    def write_base_data(self):
+    async def get_user_id(self):
+        pages = await self.get_page()
+        for page in range(1, pages):
+            rs = await self.find_base(page)
+
+            for user_data in self.get_user_data(rs):
+                yield user_data["zg_id"]
+
+    async def write_base_data(self):
         build_data = {}
-        for datas in self.manage_data():
-            for user_data in self.get_user_data(datas):
+        pages = await self.get_page()
+        for page in range(1, pages):
+            rs = await self.find_base(page)
+
+            for user_data in self.get_user_data(rs):
                 build_data["zg_id"] = user_data["zg_id"]
                 for k, v in self.build_base_data(user_data):
                     build_data[k] = v
                 self.write_user_data2file(build_data, data_type="Base")
 
-    def get_session_info(self, user_id, session_info):
+    async def get_session_info(self, user_id, session_info):
         if len(session_info["events"]) == 0:
-            return ""
+            return
         ip = ""
         column_code = ""
         for index, event in enumerate(session_info["events"]):
 
-            result = self.sessions_attr_info(user_id,
-                                             event["eventId"],
-                                             session_info["sessionId"],
-                                             event["uuid"],
-                                             event["beginDate"])
-
-            result_json = result.json()
+            result_json = await self.sessions_attr_info(user_id,
+                                                        event["eventId"],
+                                                        session_info["sessionId"],
+                                                        event["uuid"],
+                                                        event["beginDate"])
 
             for env_info in result_json["app_data"][0]["env_infos"]:
                 if env_info["name"] == "ip":
@@ -303,18 +270,18 @@ class UserInfo(ZhugeClient):
             event["column_code"] = column_code
             yield index, event
 
-    def write_sessions_yest_data(self, begin_day_id=None):
+    async def write_sessions_yest_data(self, begin_day_id=None):
         # deal data by sessions mode.
 
-        for user_id in self.get_user_id():
-            result = self.sessions(user_id, begin_day_id)
-            result_js = result.json()
+        async for user_id in self.get_user_id():
+            result_js = await self.sessions(user_id, begin_day_id)
 
             for sessionInfo in self.build_sessions_data(result_js):
                 sessionInfo["zg_id"] = user_id
                 sessionInfo["beginDayId"] = begin_day_id
 
-                for index, event in self.get_session_info(user_id, sessionInfo):
+                async for index, event in self.get_session_info(user_id,
+                                                                sessionInfo):
                     sessionInfo["events"][index] = event
 
                 self.write_user_data2file(
@@ -322,22 +289,22 @@ class UserInfo(ZhugeClient):
                                      data_type="Session",
                                      begin_day_id=begin_day_id)
 
-    def write_sessions_all_data(self):
+    async def write_sessions_all_data(self):
         # deal data by sessions mode.
 
-        for user_id in self.get_user_id():
+        async for user_id in self.get_user_id():
 
             # get this user dayId
             for begin_day_id in self.get_day_id(user_id):
                 # get session data by user_id and beginDayId.
-                result = self.sessions(user_id, begin_day_id)
-                result_js = result.json()
+                result_js = await self.sessions(user_id, begin_day_id)
+
                 for sessionInfo in self.build_sessions_data(result_js):
                     sessionInfo["zg_id"] = user_id
                     sessionInfo["beginDayId"] = begin_day_id
                     sessionInfo["events"] = []
 
-                    for event in self.get_session_info(user_id, sessionInfo):
+                    async for event in self.get_session_info(user_id, sessionInfo):
                         sessionInfo["events"].append(event)
                     self.write_user_data2file(
                                          sessionInfo,
@@ -350,27 +317,33 @@ class UserInfo(ZhugeClient):
             if sessionDay["numbers"] != 0:
                 yield sessionDay["dayId"]
 
-    def deal_data(self):
+    async def deal_data(self):
         if self.exe_mode[-1] is "1":
-            self.write_base_data()
+            await self.write_base_data()
 
         if self.exe_mode[-2] is "1":
-            self.write_user_infos_data()
+            await self.write_user_infos_data()
 
         if self.exe_mode[-3] is "1":
             yesterday = datetime.datetime.now() - datetime.timedelta(days=1)
 
             begin_day_id = int(yesterday.strftime("%Y%m%d"))
-            self.write_sessions_yest_data(begin_day_id)
+            await self.write_sessions_yest_data(begin_day_id)
 
         if self.exe_mode[-4] is "1":
 
             self.write_sessions_all_data()
 
+    async def get_page(self):
+        num_dict = await self.find_base(1)
+        user_num = num_dict['values']['count']
+        page = math.ceil(user_num/20)
+        return page + 1
+
 if __name__ == "__main__":
 
     user_info = UserInfo()
 
-    user_info.current_user()
-
-    user_info.deal_data()
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(user_info.deal_data())
+    loop.close()

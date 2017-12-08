@@ -9,8 +9,8 @@ SESSION_ATTR_INFO_URL = 'https://zhugeio.com/appuser/querySessionAttrInfos.jsp'
 APP_INFO = 'https://zhugeio.com/data/v2ajaxGetDataByApp.jsp'
 
 TOKEN_FILE = 'token.json'
-
 CLIENT_ID = '8d5227e0aaaa4797a763ac64e0c3b8'
+USER_NUM = 'https://zhugeio.com/data/queryNoticeNum.jsp'
 
 FIELD_NAMES = ['Userid', 'fwDatetime',
                'qxmc', 'fwIP',

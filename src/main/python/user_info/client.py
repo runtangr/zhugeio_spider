@@ -1,4 +1,4 @@
-# encode:utf-8
+# -*- coding:utf-8 -*-
 
 import requests
 import json
@@ -82,8 +82,8 @@ class ZhugeClient:
             self._token = ZhugeToken.from_dict(json_dict)
         except (ValueError, KeyError) as e:
             raise LoginException(str(e))
-        else:
-            ZhugeToken.save_file(self.token_file, json_dict)
+        # else:
+            # ZhugeToken.save_file(self.token_file, json_dict)
 
     def login(self):
         self.login_auth = ZhugeOAuth()
