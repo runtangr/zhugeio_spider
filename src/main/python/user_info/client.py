@@ -87,8 +87,8 @@ class ZhugeClient:
 
     def login(self):
         self.login_auth = ZhugeOAuth()
-        json_data = {"username": os.environ.get("username"),
-                     "password": os.environ.get("password"),
+        json_data = {"USER_NAME": os.environ.get("username"),
+                     "PASSWORD": os.environ.get("password"),
                      "type": 0, "location": ""}
         data = {"data": json.dumps(json_data)}
         self.save_token(self.login_auth, data)

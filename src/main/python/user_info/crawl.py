@@ -33,7 +33,7 @@ class UserInfo(ZhugeClient):
 
         self.user_type = 1
 
-        self.platform = 3
+        self.platform = int(os.getenv("PLATFORM"))
         self.platform_content = PLATFORM[self.platform]
         self.exe_mode = "000111"
 
@@ -262,7 +262,7 @@ class UserInfo(ZhugeClient):
                     break
 
             for attr_info in result_json["app_data"][0]["attr_infos"]:
-                if attr_info["attrName"] == "columnCode":
+                if attr_info["attrName"] == os.getenv("CODE", "columnCode"):
                     column_code = attr_info["eventValue"]
                     break
 
