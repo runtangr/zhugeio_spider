@@ -20,7 +20,7 @@ class FilterInfo(object):
         self.platform = 3
 
         self.begin_day_id = (datetime.datetime.now()
-                             - datetime.timedelta(days=3)).strftime("%Y%m%d")
+                             - datetime.timedelta(days=1)).strftime("%Y%m%d")
         self.platform_content = PLATFORM[self.platform]
 
     def read_session(self, zg_id):
