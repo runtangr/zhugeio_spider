@@ -31,11 +31,11 @@ class UserInfo(ZhugeClient):
 
         super(UserInfo, self).__init__()
 
-        self.user_type = 0
+        self.user_type = 1
 
         self.platform = 3
         self.platform_content = PLATFORM[self.platform]
-        self.exe_mode = "000111"
+        self.exe_mode = "000010"
 
         self.headers = {}
 
@@ -325,7 +325,7 @@ class UserInfo(ZhugeClient):
             await self.write_user_infos_data()
 
         if self.exe_mode[-3] is "1":
-            yesterday = datetime.datetime.now() - datetime.timedelta(days=1)
+            yesterday = datetime.datetime.now() - datetime.timedelta(days=3)
 
             begin_day_id = int(yesterday.strftime("%Y%m%d"))
             await self.write_sessions_yest_data(begin_day_id)
