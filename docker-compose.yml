@@ -4,7 +4,7 @@ services:
 
   useraction:
       build: ./
-      command: python uer_info/userinfo.py
+      command: python uer_info/crawl.py && python uer_info/filterinfo.py && python uer_info/ftp.py
 
   zhugeio_mongo:
       image: mongo
