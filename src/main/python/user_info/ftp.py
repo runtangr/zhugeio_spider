@@ -4,6 +4,7 @@ import time
 import tarfile
 import os
 import datetime
+from config import PLATFORM
 
 from ftplib import FTP
 
@@ -30,14 +31,12 @@ if __name__ == "__main__":
     base_dir = os.path.dirname(__file__)
     begin_day_id = (datetime.datetime.now()
                     - datetime.timedelta(days=1)).strftime("%Y%m%d")
-    platform = os.getenv("PLATFORM")
-    platform_dit = {"1": "IOS",
-                    "2": "Android",
-                    "3": "PC"}
+    platform = int(os.getenv("PLATFORM"))
+
 
     uploadfile(ftp, "/app/ftp/zhugeio/UserSession{0}_{1}.csv"
-               .format(platform_dit[platform], begin_day_id),
+               .format(PLATFORM[platform], begin_day_id),
                "{0}/filter_info/UserSession{1}_{2}.csv"
-               .format(base_dir, platform_dit[platform], begin_day_id))
+               .format(base_dir, PLATFORM[platform], begin_day_id))
 
     ftp.quit()
