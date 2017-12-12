@@ -116,29 +116,6 @@ class UserInfo(ZhugeClient):
         # print (result.text)
         return rs
 
-    def get_user_info(self, search_base_data):
-        # description: get all user_id.
-
-        first_visit_time = ""
-        app_user_id = ""
-        it = iter(search_base_data["values"]["users"])
-        for search_user_info in it:
-            for fixed_property in search_user_info["fixed_properties"]:
-
-                if fixed_property["property_name"] == "first_visit_time":
-                    first_visit_time = fixed_property["property_value"]
-                if fixed_property["property_name"] == "app_user_id":
-                    app_user_id = fixed_property["property_value"]
-            # get real user.
-            if self.user_type == 1 and app_user_id is not None:
-
-                yield (search_user_info["zg_id"],
-                       first_visit_time)
-            elif self.user_type != 1:
-                yield (search_user_info["zg_id"],
-                       first_visit_time)
-        return
-
     @staticmethod
     def build_base_data(user_datas):
 
@@ -165,9 +142,11 @@ class UserInfo(ZhugeClient):
 
         return "done"
 
-    @staticmethod
-    def get_user_data(users):
+    def get_user_data(self, users):
         for data in users["values"]["users"]:
+            if (self.user_type == 1 and
+                        data["fixed_properties"][25]["property_value"] is None):
+                continue
             yield data
 
         return
