@@ -28,7 +28,7 @@ def uploadfile(ftp_fd, remotepath, localpath):
 if __name__ == "__main__":
     ftp = ftp_connect("10.3.131.138", "zhugeio", "123456")
 
-    base_dir = os.path.dirname(__file__)
+    base_dir = os.path.dirname(os.path.abspath(__file__))
     begin_day_id = (datetime.datetime.now()
                     - datetime.timedelta(days=1)).strftime("%Y%m%d")
     platform = int(os.getenv("PLATFORM"))
