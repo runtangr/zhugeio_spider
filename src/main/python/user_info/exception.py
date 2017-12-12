@@ -6,3 +6,7 @@ class LoginException(Exception):
         return 'Login Fail: {}'.format(self.error)
 
     __str__ = __repr__
+
+
+class ContinueUser(Exception):
+    pass

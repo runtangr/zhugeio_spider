@@ -6,6 +6,7 @@ import os
 import asyncio
 import aiohttp
 import math
+from exception import ContinueUser
 from client import ZhugeClient, ZhugeToken
 from config import (
     CURRENT_USER, FIND_URL, USER_INFO_URL, SESSION_URL,
@@ -16,6 +17,8 @@ from config import (
 '''
     function: get data from zhugeio and save data to json file.
 '''
+
+continue_user = ContinueUser()
 
 
 class UserInfo(ZhugeClient):
@@ -144,9 +147,15 @@ class UserInfo(ZhugeClient):
 
     def get_user_data(self, users):
         for data in users["values"]["users"]:
-            if (self.user_type == 1 and
-                        data["fixed_properties"][25]["property_value"] is None):
+            try:
+                if self.user_type == 1:
+                    for value in (data["fixed_properties"]):
+                        if value["property_name"] == "app_user_id" and value["property_value"] is None:
+                            raise continue_user
+
+            except ContinueUser:
                 continue
+
             yield data
 
         return
