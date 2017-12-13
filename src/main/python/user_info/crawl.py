@@ -39,7 +39,7 @@ class UserInfo(ZhugeClient):
 
         self.platform = int(os.getenv("PLATFORM"))
         self.platform_content = PLATFORM[self.platform]
-        self.exe_mode = "000111"
+        self.exe_mode = "000100"
 
         self.headers = {}
 
