@@ -96,8 +96,7 @@ class UserInfo(ZhugeClient):
             "beginDate": begin_date
         }
 
-        async with aiohttp.ClientSession(cookies=self._session.cookies) \
-                as session:
+        async with aiohttp.ClientSession(cookies=self._session.cookies) as session:
             async with session.post(url=SESSION_ATTR_INFO_URL, data=data) as resp:
                 rs = await resp.json()
         return rs

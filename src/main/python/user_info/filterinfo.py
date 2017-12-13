@@ -17,7 +17,7 @@ import os
 class FilterInfo(object):
     def __init__(self):
         self.data_type = "Session"
-        self.platform = 3
+        self.platform = int(os.getenv("PLATFORM"))
 
         self.begin_day_id = (datetime.datetime.now()
                              - datetime.timedelta(days=1)).strftime("%Y%m%d")
