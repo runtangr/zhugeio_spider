@@ -165,7 +165,7 @@ class UserInfo(ZhugeClient):
         with open(path, 'a') as f:
             f.writelines(''.join([json.dumps(data, ensure_ascii=False), '\n']))
 
-    def write_user_data2file(self, datas,
+    async def write_user_data2file(self, datas,
                              data_type, begin_day_id=None):
         # write user base data to ****.dat .
 
@@ -208,7 +208,7 @@ class UserInfo(ZhugeClient):
 
             result_js["app_data"]["user"]["app_user"] = app_user
 
-            self.write_user_data2file(result_js, data_type="Infos")
+            await self.write_user_data2file(result_js, data_type="Infos")
 
     async def get_user_id(self):
         pages = await self.get_page()
@@ -228,7 +228,7 @@ class UserInfo(ZhugeClient):
                 build_data["zg_id"] = user_data["zg_id"]
                 for k, v in self.build_base_data(user_data):
                     build_data[k] = v
-                self.write_user_data2file(build_data, data_type="Base")
+                await self.write_user_data2file(build_data, data_type="Base")
 
     async def get_session_info(self, user_id, session_info):
         if len(session_info["events"]) == 0:
@@ -271,7 +271,7 @@ class UserInfo(ZhugeClient):
                                                                 sessionInfo):
                     sessionInfo["events"][index] = event
 
-                self.write_user_data2file(
+                await self.write_user_data2file(
                                      sessionInfo,
                                      data_type="Session",
                                      begin_day_id=begin_day_id)
@@ -293,7 +293,7 @@ class UserInfo(ZhugeClient):
 
                     async for event in self.get_session_info(user_id, sessionInfo):
                         sessionInfo["events"].append(event)
-                    self.write_user_data2file(
+                    await self.write_user_data2file(
                                          sessionInfo,
                                          data_type="Session",
                                          begin_day_id=begin_day_id)
