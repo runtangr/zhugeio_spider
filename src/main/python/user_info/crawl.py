@@ -26,7 +26,7 @@ continue_event = Continue()
 
 class UserInfo(ZhugeClient):
 
-    def __init__(self):
+    def __init__(self, loop=None):
         # exe_mode: "000000"
         #              |||| status 0: not deal, 1: write base data.
         #              ||| status 0: not deal, 1: write UserInfos data.
@@ -39,6 +39,8 @@ class UserInfo(ZhugeClient):
 
         self.user_type = 1
 
+        self.loop = loop or asyncio.get_event_loop()
+
         self.platform = int(os.getenv("PLATFORM"))
         self.platform_content = PLATFORM[self.platform]
         self.exe_mode = "000101"
@@ -49,7 +51,17 @@ class UserInfo(ZhugeClient):
 
         self.app_id = self.get_app_id()
 
-        self.tcpconnector = aiohttp.TCPConnector(family=socket.AF_INET)
+        self.aio_session = None
+
+    @property
+    def session(self):
+        if self.aio_session is None:
+            self.aio_session = aiohttp.ClientSession(
+                cookies=self._session.cookies, loop=self.loop)
+        return self.aio_session
+
+    def close(self):
+        self.session.close()
 
     def current_user(self):
 
@@ -57,7 +69,7 @@ class UserInfo(ZhugeClient):
         print(result.text)
 
     def get_app_id(self):
-        res = self._session.get(APP_INFO, headers=self.headers, auth=self.auth)
+        res = self._session.get(APP_INFO)
         res_dict = res.json()
         app_id = res_dict['applist'][0]['id']
 
@@ -70,9 +82,7 @@ class UserInfo(ZhugeClient):
             "platform": self.platform,
             "uid": uid
         }
-        async with aiohttp.ClientSession(connector=self.tcpconnector,
-                                         cookies=self._session.cookies) as session:
-            async with session.post(url=USER_INFO_URL, data=data) as resp:
+        async with self.session.post(url=USER_INFO_URL, data=data) as resp:
                 rs = await resp.json()
         # print (result.text)
         return rs
@@ -85,9 +95,7 @@ class UserInfo(ZhugeClient):
             "beginDayId": begin_day_id
         }
 
-        async with aiohttp.ClientSession(connector=self.tcpconnector,
-                                         cookies=self._session.cookies) as session:
-            async with session.post(url=SESSION_URL, data=data) as resp:
+        async with self.session.post(url=SESSION_URL, data=data) as resp:
                 rs = await resp.json()
         return rs
 
@@ -104,9 +112,7 @@ class UserInfo(ZhugeClient):
             "beginDate": begin_date
         }
 
-        async with aiohttp.ClientSession(connector=self.tcpconnector,
-                                         cookies=self._session.cookies) as session:
-            async with session.post(url=SESSION_ATTR_INFO_URL, data=data) as resp:
+        async with self.session.post(url=SESSION_ATTR_INFO_URL, data=data) as resp:
                 rs = await resp.json()
         return rs
 
@@ -121,9 +127,7 @@ class UserInfo(ZhugeClient):
                 "total": 0,
                 "order_by": "last_visit_time"
                 }
-        async with aiohttp.ClientSession(connector=self.tcpconnector,
-                                         cookies=self._session.cookies) as session:
-            async with session.post(url=FIND_URL, data=data) as resp:
+        async with self.session.post(url=FIND_URL, data=data) as resp:
                 rs = await resp.json()
         # print (result.text)
         return rs
@@ -351,4 +355,6 @@ if __name__ == "__main__":
 
     loop = asyncio.get_event_loop()
     loop.run_until_complete(user_info.write_data())
+
+    user_info.close()
     loop.close()
