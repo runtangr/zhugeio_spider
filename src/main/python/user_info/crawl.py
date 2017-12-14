@@ -7,6 +7,7 @@ import asyncio
 import aiohttp
 import math
 import copy
+import socket
 from exception import Continue
 from client import ZhugeClient, ZhugeToken
 from config import (
@@ -48,6 +49,8 @@ class UserInfo(ZhugeClient):
 
         self.app_id = self.get_app_id()
 
+        self.tcpconnector = aiohttp.TCPConnector(family=socket.AF_INET)
+
     def current_user(self):
 
         result = self._session.get(CURRENT_USER)
@@ -67,7 +70,8 @@ class UserInfo(ZhugeClient):
             "platform": self.platform,
             "uid": uid
         }
-        async with aiohttp.ClientSession(cookies=self._session.cookies) as session:
+        async with aiohttp.ClientSession(connector=self.tcpconnector,
+                                         cookies=self._session.cookies) as session:
             async with session.post(url=USER_INFO_URL, data=data) as resp:
                 rs = await resp.json()
         # print (result.text)
@@ -80,7 +84,9 @@ class UserInfo(ZhugeClient):
             "uid": uid,
             "beginDayId": begin_day_id
         }
-        async with aiohttp.ClientSession(cookies=self._session.cookies) as session:
+
+        async with aiohttp.ClientSession(connector=self.tcpconnector,
+                                         cookies=self._session.cookies) as session:
             async with session.post(url=SESSION_URL, data=data) as resp:
                 rs = await resp.json()
         return rs
@@ -98,7 +104,8 @@ class UserInfo(ZhugeClient):
             "beginDate": begin_date
         }
 
-        async with aiohttp.ClientSession(cookies=self._session.cookies) as session:
+        async with aiohttp.ClientSession(connector=self.tcpconnector,
+                                         cookies=self._session.cookies) as session:
             async with session.post(url=SESSION_ATTR_INFO_URL, data=data) as resp:
                 rs = await resp.json()
         return rs
@@ -114,7 +121,8 @@ class UserInfo(ZhugeClient):
                 "total": 0,
                 "order_by": "last_visit_time"
                 }
-        async with aiohttp.ClientSession(cookies=self._session.cookies) as session:
+        async with aiohttp.ClientSession(connector=self.tcpconnector,
+                                         cookies=self._session.cookies) as session:
             async with session.post(url=FIND_URL, data=data) as resp:
                 rs = await resp.json()
         # print (result.text)
