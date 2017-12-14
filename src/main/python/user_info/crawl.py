@@ -6,6 +6,7 @@ import os
 import asyncio
 import aiohttp
 import math
+import copy
 from exception import Continue
 from client import ZhugeClient, ZhugeToken
 from config import (
@@ -39,7 +40,7 @@ class UserInfo(ZhugeClient):
 
         self.platform = int(os.getenv("PLATFORM"))
         self.platform_content = PLATFORM[self.platform]
-        self.exe_mode = "000100"
+        self.exe_mode = "000101"
 
         self.headers = {}
 
@@ -266,14 +267,25 @@ class UserInfo(ZhugeClient):
             sessionInfo["zg_id"] = user_id
             sessionInfo["beginDayId"] = begin_day_id
 
+            flag_copy = False
             async for index, event in self.get_session_info(user_id,
-                                                            sessionInfo):
-                sessionInfo["events"][index] = event
+                                                     sessionInfo):
+                # bug. Overwrite the data.
+                # sessionInfo["events"][index] = event
 
-                await self.write_user_data2file(
-                    sessionInfo,
-                    data_type="Session",
-                    begin_day_id=begin_day_id)
+                # need deep copy data.
+                if flag_copy is False:
+                    write_sessionInfo = copy.deepcopy(sessionInfo)
+                    write_sessionInfo["events"] = []
+                    flag_copy = True
+
+                write_sessionInfo["events"].append(event)
+            else:
+                if flag_copy is True:
+                    await self.write_user_data2file(
+                        write_sessionInfo,
+                        data_type="Session",
+                        begin_day_id=begin_day_id)
     async def write_data(self):
         # deal data by mode.
         async for user_id in self.get_user_id():

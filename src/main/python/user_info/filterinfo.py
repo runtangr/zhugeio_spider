@@ -6,7 +6,7 @@ import json
 import time
 import logging
 from config import (FIELD_NAMES, FILTER_PATH, YEST_SESSION_PATH,
-                    INFO_PATH, PLATFORM, FILTER_PATH, FILTER_INFO_DIR)
+                    BASE_PATH, PLATFORM, FILTER_PATH, FILTER_INFO_DIR)
 import os
 
 '''
@@ -33,14 +33,14 @@ class FilterInfo(object):
                 if line_dic["zg_id"] == zg_id:
                     yield line_dic
 
-    def read_user_info(self):
-        info_path = INFO_PATH.format(self.platform_content)
+    def read_user_base(self):
+        info_path = BASE_PATH.format(self.platform_content)
         with open(info_path, 'r') as f:
             for read_line in f:
                 line_dic = json.loads(read_line)
 
-                yield (line_dic["app_data"]["user"]["app_user"]["zg_id"],
-                       line_dic["app_data"]["user"]["app_user"]["app_user_id"])
+                yield (line_dic["zg_id"],
+                       line_dic["app_user_id"])
 
     def init_write_csv(self):
 
@@ -75,7 +75,7 @@ class FilterInfo(object):
                                  FIELD_NAMES[5]: str(event["column_code"])})
 
     def write_filter_info(self):
-        for search_zg_id, search_user_id in self.read_user_info():
+        for search_zg_id, search_user_id in self.read_user_base():
             # filter user.
             if search_user_id is not None:
                 for line in self.read_session(search_zg_id):
