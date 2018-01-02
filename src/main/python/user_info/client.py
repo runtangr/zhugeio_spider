@@ -81,7 +81,10 @@ class ZhugeClient:
                 raise LoginException(json_dict['error']['message'])
             self._token = ZhugeToken.from_dict(json_dict)
         except (ValueError, KeyError) as e:
-            raise LoginException(str(e))
+            # login again
+            time.sleep(5)
+            self.save_token(auth, data)
+
         # else:
             # ZhugeToken.save_file(self.token_file, json_dict)
 

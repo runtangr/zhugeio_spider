@@ -8,5 +8,5 @@ class LoginException(Exception):
     __str__ = __repr__
 
 
-class Continue(Exception):
+class LoopContinue(Exception):
     pass

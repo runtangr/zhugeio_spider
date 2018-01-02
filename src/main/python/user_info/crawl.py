@@ -8,20 +8,22 @@ import aiohttp
 import math
 import copy
 import socket
-from exception import Continue
+import logging
+from exception import LoopContinue
 from client import ZhugeClient, ZhugeToken
 from config import (
     CURRENT_USER, FIND_URL, USER_INFO_URL, SESSION_URL,
     SESSION_ATTR_INFO_URL, INFO_TYPE, ALL_SESSION_PATH,
     YEST_SESSION_PATH, INFO_PATH, BASE_PATH, PLATFORM,
     INFO_DIR, TOKEN_FILE, APP_INFO, USER_NUM)
+import time
 
 '''
     function: get data from zhugeio and save data to json file.
 '''
 
-continue_user = Continue()
-continue_event = Continue()
+continue_user = LoopContinue()
+continue_event = LoopContinue()
 
 
 class UserInfo(ZhugeClient):
@@ -44,8 +46,6 @@ class UserInfo(ZhugeClient):
         self.platform = int(os.getenv("PLATFORM"))
         self.platform_content = PLATFORM[self.platform]
         self.exe_mode = "000101"
-
-        self.headers = {}
 
         self.client = ZhugeClient()
 
@@ -83,8 +83,12 @@ class UserInfo(ZhugeClient):
             "uid": uid
         }
         async with self.session.post(url=USER_INFO_URL, data=data) as resp:
+            try:
                 rs = await resp.json()
-        # print (result.text)
+            except TypeError as e:
+                logging.warning(e)
+                time.sleep(5)
+                self.query_user_info(uid)
         return rs
 
     async def sessions(self, uid, begin_day_id):
@@ -96,7 +100,12 @@ class UserInfo(ZhugeClient):
         }
 
         async with self.session.post(url=SESSION_URL, data=data) as resp:
+            try:
                 rs = await resp.json()
+            except TypeError as e:
+                logging.warning(e)
+                time.sleep(5)
+                self.sessions(uid, begin_day_id)
         return rs
 
     async def sessions_attr_info(self, uid,
@@ -113,7 +122,14 @@ class UserInfo(ZhugeClient):
         }
 
         async with self.session.post(url=SESSION_ATTR_INFO_URL, data=data) as resp:
+            try:
                 rs = await resp.json()
+            except TypeError as e:
+                logging.warning(e)
+                time.sleep(5)
+                self.sessions_attr_info(uid,
+                                        event_id, session_id,
+                                        uuid, begin_date)
         return rs
 
     async def find_base(self, page):
@@ -128,8 +144,12 @@ class UserInfo(ZhugeClient):
                 "order_by": "last_visit_time"
                 }
         async with self.session.post(url=FIND_URL, data=data) as resp:
+            try:
                 rs = await resp.json()
-        # print (result.text)
+            except TypeError as e:
+                logging.warning(e)
+                time.sleep(5)
+                self.find_base(page)
         return rs
 
     @staticmethod
@@ -162,7 +182,7 @@ class UserInfo(ZhugeClient):
                     for value in (data["fixed_properties"]):
                         if value["property_name"] == "app_user_id" and value["property_value"] is None:
                             raise continue_user
-            except Continue:
+            except LoopContinue:
                 continue
 
             yield data
@@ -266,7 +286,7 @@ class UserInfo(ZhugeClient):
                         ip = env_info["value"]
                         break
 
-            except Continue:
+            except LoopContinue:
                 continue
             event["ip"] = ip
             event["column_code"] = column_code
@@ -281,21 +301,19 @@ class UserInfo(ZhugeClient):
 
             flag_copy = False
             async for index, event in self.get_session_info(user_id,
-                                                     sessionInfo):
-                # bug. Overwrite the data.
-                # sessionInfo["events"][index] = event
+                                                            sessionInfo):
 
                 # need deep copy data.
                 if flag_copy is False:
-                    write_sessionInfo = copy.deepcopy(sessionInfo)
-                    write_sessionInfo["events"] = []
+                    write_session_info = copy.deepcopy(sessionInfo)
+                    write_session_info["events"] = []
                     flag_copy = True
 
-                write_sessionInfo["events"].append(event)
+                    write_session_info["events"].append(event)
             else:
                 if flag_copy is True:
                     await self.write_user_data2file(
-                        write_sessionInfo,
+                        write_session_info,
                         data_type="Session",
                         begin_day_id=begin_day_id)
     async def write_data(self):
@@ -353,8 +371,8 @@ if __name__ == "__main__":
 
     user_info = UserInfo()
 
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(user_info.write_data())
+    loop_crawl = asyncio.get_event_loop()
+    loop_crawl.run_until_complete(user_info.write_data())
 
     user_info.close()
-    loop.close()
+    loop_crawl.close()
