@@ -5,7 +5,7 @@ import csv
 import json
 import time
 import logging
-from config import (FIELD_NAMES, FILTER_PATH, YEST_SESSION_PATH,
+from config import (CSV_FIELD_NAMES, FILTER_PATH, YEST_SESSION_PATH,
                     BASE_PATH, PLATFORM, FILTER_PATH, FILTER_INFO_DIR)
 import os
 
@@ -51,9 +51,9 @@ class FilterInfo(object):
 
         with open(filter_path, 'a') as csv_file:
 
-            writer = csv.DictWriter(csv_file, FIELD_NAMES)
+            writer = csv.DictWriter(csv_file, CSV_FIELD_NAMES)
 
-            field_dict = {key: key for key in FIELD_NAMES}
+            field_dict = {key: key for key in CSV_FIELD_NAMES}
             writer.writerow(field_dict)
 
     def write_csv(self, user_id, events):
@@ -61,18 +61,18 @@ class FilterInfo(object):
                                          begin_day_id=self.begin_day_id)
         with open(filter_path, 'a') as csv_file:
 
-            writer = csv.DictWriter(csv_file, FIELD_NAMES)
+            writer = csv.DictWriter(csv_file, CSV_FIELD_NAMES)
             for event in events:
                 time_array = time.localtime(event["beginDate"]/1000)
                 str_style_time = time.strftime("%Y-%m-%d %H:%M:%S", time_array)
 
-                writer.writerow({FIELD_NAMES[0]: int(user_id),
-                                 FIELD_NAMES[1]: str_style_time,
-                                 FIELD_NAMES[2]: event["eventName"],
-                                 FIELD_NAMES[3]: event["ip"],
-                                 FIELD_NAMES[4]: (5 if self.platform == 3
+                writer.writerow({CSV_FIELD_NAMES[0]: int(user_id),
+                                 CSV_FIELD_NAMES[1]: str_style_time,
+                                 CSV_FIELD_NAMES[2]: event["eventName"],
+                                 CSV_FIELD_NAMES[3]: event["ip"],
+                                 CSV_FIELD_NAMES[4]: (5 if self.platform == 3
                                                   else self.platform),
-                                 FIELD_NAMES[5]: str(event["column_code"])})
+                                 CSV_FIELD_NAMES[5]: str(event["column_code"])})
 
     def write_filter_info(self):
         for search_zg_id, search_user_id in self.read_user_base():

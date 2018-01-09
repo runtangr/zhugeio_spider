@@ -1,4 +1,6 @@
 
+UA = 'osee2unifiedRelease/3.28.0 (iPhone; iOS 10.2; Scale/2.00)'
+REFERER = 'https://zhugeio.com/index/login.jsp'
 ZHUGEIO_URL = 'https://zhugeio.com'
 LOGIN_URL = 'https://zhugeio.com/index/loginActionJsonp.jsp?jsonpcallback'
 CURRENT_USER = 'https://zhugeio.com/company/currentUser.jsp'
@@ -12,9 +14,9 @@ TOKEN_FILE = 'token.json'
 CLIENT_ID = '8d5227e0aaaa4797a763ac64e0c3b8'
 USER_NUM = 'https://zhugeio.com/data/queryNoticeNum.jsp'
 
-FIELD_NAMES = ['Userid', 'fwDatetime',
-               'qxmc', 'fwIP',
-               'fwSource', 'fwCode']
+CSV_FIELD_NAMES = ['Userid', 'fwDatetime',
+                   'qxmc', 'fwIP',
+                   'fwSource', 'fwCode']
 
 INFO_DIR = './info/'
 FILTER_INFO_DIR = './filter_info/'

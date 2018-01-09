@@ -6,7 +6,8 @@ import time
 import os
 from requests.auth import AuthBase
 from exception import LoginException
-from config import LOGIN_URL, TOKEN_FILE, CLIENT_ID
+from config import (LOGIN_URL, TOKEN_FILE,
+                    CLIENT_ID, UA, REFERER)
 
 '''
 user login and save token.
@@ -28,6 +29,8 @@ class ZhugeOAuth(AuthBase):
                 token=str(self._token)
             )
         r.headers['Authorization'] = auth_str
+        r.headers['User-Agent'] = UA
+        r.headers['referer'] = REFERER
         return r
 
 

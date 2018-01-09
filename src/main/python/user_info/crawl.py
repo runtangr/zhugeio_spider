@@ -39,6 +39,8 @@ class UserInfo(ZhugeClient):
 
         super(UserInfo, self).__init__()
 
+        self.yesterday = datetime.datetime.now() - datetime.timedelta(days=1)
+
         self.user_type = 1
 
         self.loop = loop or asyncio.get_event_loop()
@@ -86,7 +88,7 @@ class UserInfo(ZhugeClient):
             try:
                 rs = await resp.json()
             except TypeError as e:
-                logging.warning(e)
+                logging.warning(resp.txt)
                 time.sleep(5)
                 self.query_user_info(uid)
         return rs
@@ -103,7 +105,7 @@ class UserInfo(ZhugeClient):
             try:
                 rs = await resp.json()
             except TypeError as e:
-                logging.warning(e)
+                logging.warning(resp.txt)
                 time.sleep(5)
                 self.sessions(uid, begin_day_id)
         return rs
@@ -125,7 +127,7 @@ class UserInfo(ZhugeClient):
             try:
                 rs = await resp.json()
             except TypeError as e:
-                logging.warning(e)
+                logging.warning(resp.txt)
                 time.sleep(5)
                 self.sessions_attr_info(uid,
                                         event_id, session_id,
@@ -147,7 +149,7 @@ class UserInfo(ZhugeClient):
             try:
                 rs = await resp.json()
             except TypeError as e:
-                logging.warning(e)
+                logging.warning(resp.txt)
                 time.sleep(5)
                 self.find_base(page)
         return rs
@@ -324,9 +326,8 @@ class UserInfo(ZhugeClient):
                 await self.write_user_infos_data(user_id)
             # write yesterday data.
             if self.exe_mode[-3] is "1":
-                yesterday = datetime.datetime.now() - datetime.timedelta(days=1)
 
-                begin_day_id = int(yesterday.strftime("%Y%m%d"))
+                begin_day_id = int(self.yesterday.strftime("%Y%m%d"))
                 await self.write_yest_data(user_id, begin_day_id)
 
             # if self.exe_mode[-4] is "1":
