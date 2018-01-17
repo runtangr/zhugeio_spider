@@ -6,7 +6,5 @@ services:
       build: ./
       command: python crawl.py && python filterinfo.py && python ftp.py
 
-  zhugeio_mongo:
-      image: mongo
 
 
